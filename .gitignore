@@ -220,3 +220,9 @@ AGENTS.md
 .cursorrules
 .windsurfrules
 .aider*
+
+# UltraBreak repo-specific generated artifacts
+/repro/
+/logs/
+/outputs/
+/results/
