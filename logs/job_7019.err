@@ -1,355 +1,0 @@
-Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00, 4632.03it/s]
-Loading weights:   0%|          | 0/704 [00:00<?, ?it/s]Loading weights:   0%|          | 1/704 [00:00<02:47,  4.19it/s]Loading weights:   1%|          | 4/704 [00:00<01:31,  7.67it/s]Loading weights:   1%|          | 5/704 [00:00<01:30,  7.74it/s]Loading weights:   4%|▍         | 28/704 [00:00<00:11, 60.04it/s]Loading weights:   6%|▌         | 43/704 [00:00<00:08, 81.89it/s]Loading weights:   8%|▊         | 56/704 [00:01<00:07, 90.00it/s]Loading weights:  12%|█▏        | 82/704 [00:01<00:05, 117.91it/s]Loading weights:  15%|█▌        | 108/704 [00:01<00:04, 145.65it/s]Loading weights:  18%|█▊        | 124/704 [00:01<00:04, 140.41it/s]Loading weights:  20%|██        | 144/704 [00:01<00:03, 149.04it/s]Loading weights:  23%|██▎       | 161/704 [00:01<00:03, 143.59it/s]Loading weights:  26%|██▌       | 183/704 [00:01<00:03, 162.95it/s]Loading weights:  28%|██▊       | 200/704 [00:01<00:03, 143.42it/s]Loading weights:  31%|███▏      | 220/704 [00:02<00:03, 155.21it/s]Loading weights:  34%|███▎      | 237/704 [00:02<00:03, 155.63it/s]Loading weights:  36%|███▌      | 254/704 [00:02<00:03, 147.96it/s]Loading weights:  38%|███▊      | 271/704 [00:02<00:02, 153.51it/s]Loading weights:  41%|████      | 290/704 [00:02<00:02, 160.84it/s]Loading weights:  44%|████▎     | 307/704 [00:02<00:02, 150.87it/s]Loading weights:  46%|████▌     | 325/704 [00:02<00:02, 158.17it/s]Loading weights:  49%|████▊     | 342/704 [00:02<00:02, 158.33it/s]Loading weights:  51%|█████     | 359/704 [00:02<00:02, 150.05it/s]Loading weights:  54%|█████▎    | 377/704 [00:03<00:02, 155.60it/s]Loading weights:  56%|█████▌    | 394/704 [00:03<00:02, 153.78it/s]Loading weights:  58%|█████▊    | 410/704 [00:03<00:02, 144.79it/s]Loading weights:  61%|██████    | 429/704 [00:03<00:01, 156.39it/s]Loading weights:  63%|██████▎   | 446/704 [00:03<00:01, 155.59it/s]Loading weights:  66%|██████▌   | 462/704 [00:03<00:01, 144.11it/s]Loading weights:  68%|██████▊   | 481/704 [00:03<00:01, 156.29it/s]Loading weights:  71%|███████   | 498/704 [00:03<00:01, 157.37it/s]Loading weights:  73%|███████▎  | 514/704 [00:03<00:01, 148.63it/s]Loading weights:  81%|████████  | 570/704 [00:04<00:00, 259.71it/s]Loading weights:  89%|████████▉ | 627/704 [00:04<00:00, 346.37it/s]Loading weights:  97%|█████████▋| 686/704 [00:04<00:00, 412.97it/s]Loading weights: 100%|██████████| 704/704 [00:04<00:00, 161.91it/s]
-Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Fetching 4 files:   0%|          | 0/4 [00:00<?, ?it/s]Fetching 4 files: 100%|██████████| 4/4 [00:00<00:00, 6644.44it/s]
-Loading weights:   0%|          | 0/687 [00:00<?, ?it/s]Loading weights: 100%|██████████| 687/687 [00:00<00:00, 21873.86it/s]
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-[transformers] Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
-Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-[transformers] Encountered exception while importing transformers_stream_generator: cannot import name 'DisjunctiveConstraint' from 'transformers' (/mnt/home2/home/ankur_d/.conda/envs/ultrabreak/lib/python3.10/site-packages/transformers/__init__.py)
-Traceback (most recent call last):
-  File "/mnt/home2/home/ankur_d/sm/UltraBreak/evaluation/attack.py", line 284, in <module>
-    main(args)
-  File "/mnt/home2/home/ankur_d/sm/UltraBreak/evaluation/attack.py", line 66, in main
-    model = AutoModelForCausalLM.from_pretrained("Qwen/Qwen-VL-Chat", device_map="cuda", trust_remote_code=True).eval()
-  File "/mnt/home2/home/ankur_d/.conda/envs/ultrabreak/lib/python3.10/site-packages/transformers/models/auto/auto_factory.py", line 378, in from_pretrained
-    model_class = get_class_from_dynamic_module(
-  File "/mnt/home2/home/ankur_d/.conda/envs/ultrabreak/lib/python3.10/site-packages/transformers/dynamic_module_utils.py", line 612, in get_class_from_dynamic_module
-    final_module = get_cached_module_file(
-  File "/mnt/home2/home/ankur_d/.conda/envs/ultrabreak/lib/python3.10/site-packages/transformers/dynamic_module_utils.py", line 441, in get_cached_module_file
-    modules_needed = check_imports(resolved_module_file)
-  File "/mnt/home2/home/ankur_d/.conda/envs/ultrabreak/lib/python3.10/site-packages/transformers/dynamic_module_utils.py", line 246, in check_imports
-    importlib.import_module(imp)
-  File "/mnt/home2/home/ankur_d/.conda/envs/ultrabreak/lib/python3.10/importlib/__init__.py", line 126, in import_module
-    return _bootstrap._gcd_import(name[level:], package, level)
-  File "<frozen importlib._bootstrap>", line 1050, in _gcd_import
-  File "<frozen importlib._bootstrap>", line 1027, in _find_and_load
-  File "<frozen importlib._bootstrap>", line 1006, in _find_and_load_unlocked
-  File "<frozen importlib._bootstrap>", line 688, in _load_unlocked
-  File "<frozen importlib._bootstrap_external>", line 883, in exec_module
-  File "<frozen importlib._bootstrap>", line 241, in _call_with_frames_removed
-  File "/mnt/home2/home/ankur_d/.conda/envs/ultrabreak/lib/python3.10/site-packages/transformers_stream_generator/__init__.py", line 1, in <module>
-    from .main import init_stream_support
-  File "/mnt/home2/home/ankur_d/.conda/envs/ultrabreak/lib/python3.10/site-packages/transformers_stream_generator/main.py", line 1, in <module>
-    from transformers import (
-ImportError: cannot import name 'DisjunctiveConstraint' from 'transformers' (/mnt/home2/home/ankur_d/.conda/envs/ultrabreak/lib/python3.10/site-packages/transformers/__init__.py)
-Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]Fetching 5 files: 100%|██████████| 5/5 [00:00<00:00, 4725.44it/s]
-Loading weights:   0%|          | 0/730 [00:00<?, ?it/s]Loading weights:   0%|          | 1/730 [00:00<02:57,  4.11it/s]Loading weights:   2%|▏         | 15/730 [00:00<00:13, 53.52it/s]Loading weights:   4%|▍         | 30/730 [00:00<00:08, 78.87it/s]Loading weights:   6%|▋         | 46/730 [00:00<00:06, 101.47it/s]Loading weights:   8%|▊         | 60/730 [00:00<00:05, 111.95it/s]Loading weights:  10%|█         | 73/730 [00:00<00:05, 116.25it/s]Loading weights:  12%|█▏        | 88/730 [00:00<00:05, 122.81it/s]Loading weights:  14%|█▍        | 101/730 [00:01<00:05, 117.68it/s]Loading weights:  16%|█▌        | 114/730 [00:01<00:16, 38.16it/s] Loading weights:  17%|█▋        | 123/730 [00:02<00:15, 40.16it/s]Loading weights:  19%|█▊        | 136/730 [00:02<00:11, 49.88it/s]Loading weights:  20%|██        | 148/730 [00:02<00:09, 60.31it/s]Loading weights:  22%|██▏       | 160/730 [00:02<00:08, 70.30it/s]Loading weights:  24%|██▎       | 172/730 [00:02<00:07, 79.14it/s]Loading weights:  25%|██▌       | 184/730 [00:02<00:06, 86.84it/s]Loading weights:  27%|██▋       | 196/730 [00:02<00:05, 93.82it/s]Loading weights:  28%|██▊       | 208/730 [00:02<00:05, 98.76it/s]Loading weights:  30%|███       | 220/730 [00:02<00:04, 102.04it/s]Loading weights:  32%|███▏      | 232/730 [00:03<00:12, 41.19it/s] Loading weights:  34%|███▎      | 246/730 [00:03<00:09, 53.09it/s]Loading weights:  35%|███▌      | 258/730 [00:03<00:07, 63.20it/s]Loading weights:  37%|███▋      | 270/730 [00:03<00:06, 72.06it/s]Loading weights:  39%|███▊      | 282/730 [00:04<00:05, 81.07it/s]Loading weights:  40%|████      | 294/730 [00:04<00:04, 89.49it/s]Loading weights:  42%|████▏     | 306/730 [00:04<00:04, 96.21it/s]Loading weights:  44%|████▎     | 318/730 [00:04<00:04, 99.14it/s]Loading weights:  45%|████▌     | 330/730 [00:04<00:07, 50.51it/s]Loading weights:  52%|█████▏    | 376/730 [00:04<00:03, 112.87it/s]Loading weights:  56%|█████▌    | 410/730 [00:05<00:02, 153.45it/s]Loading weights:  60%|█████▉    | 435/730 [00:05<00:01, 162.56it/s]Loading weights:  63%|██████▎   | 458/730 [00:05<00:01, 149.28it/s]Loading weights:  79%|███████▉  | 575/730 [00:05<00:00, 358.32it/s]Loading weights:  95%|█████████▌| 695/730 [00:05<00:00, 547.56it/s]Loading weights: 100%|██████████| 730/730 [00:05<00:00, 124.00it/s]
-Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
-Fetching 5 files:   0%|          | 0/5 [00:00<?, ?it/s]Fetching 5 files: 100%|██████████| 5/5 [00:00<00:00, 27962.03it/s]
-Loading weights:   0%|          | 0/729 [00:00<?, ?it/s]Loading weights:   0%|          | 1/729 [00:00<01:13,  9.93it/s]Loading weights:   0%|          | 2/729 [00:00<01:57,  6.18it/s]Loading weights:   2%|▏         | 16/729 [00:00<00:13, 51.31it/s]Loading weights:   4%|▍         | 29/729 [00:00<00:09, 76.63it/s]Loading weights:   5%|▌         | 40/729 [00:00<00:14, 47.43it/s]Loading weights:   7%|▋         | 53/729 [00:01<00:11, 60.46it/s]Loading weights:   9%|▉         | 65/729 [00:01<00:09, 71.92it/s]Loading weights:  10%|█         | 76/729 [00:01<00:08, 74.64it/s]Loading weights:  12%|█▏        | 90/729 [00:01<00:07, 88.23it/s]Loading weights:  14%|█▍        | 102/729 [00:01<00:06, 93.48it/s]Loading weights:  16%|█▌        | 113/729 [00:01<00:08, 75.96it/s]Loading weights:  17%|█▋        | 122/729 [00:01<00:07, 78.78it/s]Loading weights:  18%|█▊        | 131/729 [00:02<00:10, 57.16it/s]Loading weights:  19%|█▉        | 139/729 [00:02<00:19, 30.18it/s]Loading weights:  20%|█▉        | 145/729 [00:02<00:19, 29.73it/s]Loading weights:  21%|██        | 150/729 [00:03<00:19, 29.84it/s]Loading weights:  22%|██▏       | 161/729 [00:03<00:13, 40.98it/s]Loading weights:  24%|██▍       | 174/729 [00:03<00:10, 54.53it/s]Loading weights:  26%|██▌       | 186/729 [00:03<00:08, 65.61it/s]Loading weights:  27%|██▋       | 198/729 [00:03<00:07, 75.16it/s]Loading weights:  29%|██▉       | 210/729 [00:03<00:06, 84.41it/s]Loading weights:  30%|███       | 222/729 [00:03<00:05, 88.23it/s]Loading weights:  32%|███▏      | 234/729 [00:03<00:05, 92.73it/s]Loading weights:  34%|███▎      | 246/729 [00:03<00:04, 97.37it/s]Loading weights:  35%|███▌      | 258/729 [00:04<00:04, 100.65it/s]Loading weights:  37%|███▋      | 270/729 [00:04<00:04, 102.09it/s]Loading weights:  39%|███▊      | 282/729 [00:04<00:04, 104.02it/s]Loading weights:  40%|████      | 294/729 [00:04<00:04, 106.19it/s]Loading weights:  42%|████▏     | 306/729 [00:04<00:04, 100.98it/s]Loading weights:  44%|████▎     | 318/729 [00:04<00:04, 100.92it/s]Loading weights:  45%|████▌     | 329/729 [00:04<00:04, 99.51it/s] Loading weights:  60%|█████▉    | 437/729 [00:04<00:00, 361.36it/s]Loading weights:  76%|███████▌  | 551/729 [00:04<00:00, 573.41it/s]Loading weights:  92%|█████████▏| 669/729 [00:05<00:00, 740.19it/s]Loading weights: 100%|██████████| 729/729 [00:05<00:00, 141.28it/s]

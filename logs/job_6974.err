@@ -1,6 +1,0 @@
-Traceback (most recent call last):
-  File "/mnt/home2/home/ankur_d/sm/UltraBreak/evaluation/attack.py", line 284, in <module>
-    main(args)
-  File "/mnt/home2/home/ankur_d/sm/UltraBreak/evaluation/attack.py", line 206, in main
-    from transformers import AutoProcessor, Glm4vForConditionalGeneration
-ImportError: cannot import name 'Glm4vForConditionalGeneration' from 'transformers' (/mnt/home2/home/ankur_d/.conda/envs/ultrabreak/lib/python3.10/site-packages/transformers/__init__.py)

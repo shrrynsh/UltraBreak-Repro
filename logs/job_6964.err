@@ -1,17 +1,0 @@
-Loading checkpoint shards:   0%|          | 0/6 [00:00<?, ?it/s]Loading checkpoint shards:  17%|█▋        | 1/6 [00:01<00:09,  1.88s/it]Loading checkpoint shards:  33%|███▎      | 2/6 [00:02<00:05,  1.42s/it]Loading checkpoint shards:  50%|█████     | 3/6 [00:04<00:03,  1.25s/it]Loading checkpoint shards:  67%|██████▋   | 4/6 [00:05<00:02,  1.15s/it]Loading checkpoint shards:  83%|████████▎ | 5/6 [00:06<00:01,  1.11s/it]Loading checkpoint shards: 100%|██████████| 6/6 [00:06<00:00,  1.23it/s]Loading checkpoint shards: 100%|██████████| 6/6 [00:06<00:00,  1.05s/it]
-Traceback (most recent call last):
-  File "/mnt/home2/home/ankur_d/sm/UltraBreak/evaluation/evaluate.py", line 109, in <module>
-    main(args)
-  File "/mnt/home2/home/ankur_d/sm/UltraBreak/evaluation/evaluate.py", line 42, in main
-    result_df = pd.read_csv(attack_result)
-  File "/mnt/home2/home/ankur_d/.conda/envs/ultrabreak/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
-    return _read(filepath_or_buffer, kwds)
-  File "/mnt/home2/home/ankur_d/.conda/envs/ultrabreak/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 620, in _read
-    parser = TextFileReader(filepath_or_buffer, **kwds)
-  File "/mnt/home2/home/ankur_d/.conda/envs/ultrabreak/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1620, in __init__
-    self._engine = self._make_engine(f, self.engine)
-  File "/mnt/home2/home/ankur_d/.conda/envs/ultrabreak/lib/python3.10/site-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
-    self.handles = get_handle(
-  File "/mnt/home2/home/ankur_d/.conda/envs/ultrabreak/lib/python3.10/site-packages/pandas/io/common.py", line 873, in get_handle
-    handle = open(
-FileNotFoundError: [Errno 2] No such file or directory: 'results/advbench_jailbroken_mode_5000/Qwen/Qwen2.5-VL-7B-Instruct.csv'
