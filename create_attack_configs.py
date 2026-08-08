@@ -137,17 +137,16 @@ def build_attack_config(df: pd.DataFrame, phrase: str, image: str, normalize: bo
     Attack config format (evaluation):
         text   : TPG prompt
         image  : path to jailbreak image
-        target : clean target string (no prefix)
+        target : original clean target string (no prefix)
     """
     rows = []
     for _, row in df.iterrows():
-        instruction = row["clean_target"].strip()
-        if normalize:
-            instruction = normalize_instruction(instruction)
+        original_instruction = row["clean_target"].strip()
+        instruction = normalize_instruction(original_instruction) if normalize else original_instruction
         rows.append({
             "text":   make_tpg_text(instruction, phrase),
             "image":  image,
-            "target": instruction.rstrip("."),
+            "target": original_instruction.rstrip("."),
         })
     return pd.DataFrame(rows)
 

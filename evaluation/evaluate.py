@@ -14,22 +14,48 @@ import os
 from judge_llms.harmbench_judge import HarmBenchJudge
 from judge_llms.general_judge import GeneralJudge
 
-def extract_assistant_text(response_str: str) -> str | None:
+def infer_model_family(attack_result: str) -> str:
+    lower_path = attack_result.lower()
+    if "qwen2.5-vl" in lower_path or "qwen2-vl" in lower_path:
+        return "qwen2_vl"
+    if "glm-4.1v" in lower_path:
+        return "glm"
+    if "llava" in lower_path:
+        return "llava"
+    if "kimi-vl" in lower_path or "moonshotai" in lower_path:
+        return "kimi"
+    if "qwen-vl-chat" in lower_path:
+        return "qwen_vl_chat"
+    return "generic"
+
+
+def _strip_after_last_assistant_marker(text: str) -> str:
+    matches = list(re.finditer(r"(?:^|\n)assistant(?:\s*[:\-]\s*|\s*\n)", text, re.IGNORECASE))
+    if matches:
+        return text[matches[-1].end():].strip()
+    return text.strip()
+
+
+def extract_assistant_text(response_str: str, model_family: str) -> str | None:
     """
     Extract assistant text from a generation string.
-    Looks for the last [/INST] or the first 'assistant'.
+    Handles model-family-specific chat formatting so the scorer sees only the
+    model's answer.
     """
     if not isinstance(response_str, str):
         return None
 
-    text = response_str
+    text = response_str.strip()
 
     if '[/INST]' in text:
         return text.split('[/INST]')[-1].strip()
 
-    m = re.search(r'assistant[:\s-]*', text, re.IGNORECASE)
-    if m:
-        return text[m.end():].strip()
+    if model_family == "glm":
+        text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL | re.IGNORECASE).strip()
+        return _strip_after_last_assistant_marker(text)
+
+    if model_family == "qwen2_vl":
+        return _strip_after_last_assistant_marker(text)
 
     return text.strip()
 
@@ -39,8 +65,9 @@ def main(args):
     #judge = GeneralJudge('meta-llama/Llama-3.1-8B-Instruct')
     #judge = GeneralJudge('meta-llama/Llama-3.2-3B-Instruct')
     attack_result = args.attack_result
+    model_family = infer_model_family(attack_result)
     result_df = pd.read_csv(attack_result)
-    output_file = f"{attack_result.rsplit('.', 1)[0]}_harmbench.csv"
+    output_file = f"{attack_result.rsplit('.', 1)[0]}{args.output_suffix}"
     #output_file = f"{attack_result.rsplit('.', 1)[0]}_general_llama31.csv"
     print("Generating "+ output_file)
 
@@ -49,9 +76,7 @@ def main(args):
 
     for _, row in result_df.iterrows():
         harmful_query = row["target"]
-        text_input = row["text"]
-        image_path = row["image"] 
-        response_text = extract_assistant_text(row['response'])
+        response_text = extract_assistant_text(row['response'], model_family) or ""
         
         print("\n\n-----------------TARGET-----------------\n")
         print(harmful_query)
@@ -103,6 +128,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--attack_result", type=str, default="results/test/Qwen/Qwen2.5-VL-7B-Instruct.csv")
+    parser.add_argument("--output_suffix", type=str, default="_harmbench.csv")
     args = parser.parse_args()
 
 
