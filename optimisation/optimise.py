@@ -70,17 +70,18 @@ def total_variation(img):
         return h_variation + w_variation
     
 
-def main():
+def main(args=None):
     device = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
 
-    train_config = "./train_configs/safebench-tiny_jailbroken_mode.csv"
+    # Defaults preserve the previous hard-coded behaviour; CLI args override them.
+    train_config = args.train_config if args else "./train_configs/safebench-tiny_jailbroken_mode.csv"
     qwen_adapter = Qwen2Adapter("Qwen/Qwen2-VL-7B-Instruct", patch_only=False)
 
     # optionally optimise against multiple surrogates; final method only uses one
     ensemble = [qwen_adapter]#, clip_adapter] #, llava_adapter]
-    
-    exp_name =  'safebench-tiny_jailbroken_mode_5000'
-    base_epoch = 0
+
+    exp_name = args.exp_name if args else 'safebench-tiny_jailbroken_mode_5000'
+    base_epoch = args.base_epoch if args else 0
     
     os.makedirs(f"outputs/{exp_name}/", exist_ok=True)
     target_df = pd.read_csv(train_config)
@@ -98,7 +99,7 @@ def main():
     optimizer = optim.Adam([adv_patch], lr=lr) # tune the learning rate
 
     # Training loop
-    num_epochs = 5000 
+    num_epochs = args.num_epochs if args else 5000
     patience = 5000  # Number of epochs to wait before stopping
     best_loss = float('inf')
     best_img = None
@@ -194,4 +195,10 @@ def main():
     return
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--train_config", type=str, default="./train_configs/safebench-tiny_jailbroken_mode.csv")
+    parser.add_argument("--exp_name", type=str, default="safebench-tiny_jailbroken_mode_5000")
+    parser.add_argument("--num_epochs", type=int, default=5000)
+    parser.add_argument("--base_epoch", type=int, default=0)
+    main(parser.parse_args())

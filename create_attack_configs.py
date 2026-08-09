@@ -105,11 +105,16 @@ def load_safebench(
     path: str,
     categories: Optional[List[str]],
     exclude_train_path: Optional[str] = None,
+    exclude_categories: bool = True,
 ) -> pd.DataFrame:
     df = pd.read_csv(path)
-    # Drop excluded categories (see paper: legal opinion, financial advice, health consultation)
-    excluded = {"legal opinion", "financial advice", "health consultation"}
-    df = df[~df["category_name"].str.lower().isin(excluded)]
+    # Drop excluded categories (see paper: legal opinion, financial advice, health consultation).
+    # This is an EVALUATION-set cleanliness step in the paper, so it should not be applied when
+    # building the training corpus — pass exclude_categories=False for train configs to keep all
+    # 50 SafeBench-Tiny queries (5 per topic x 10 topics).
+    if exclude_categories:
+        excluded = {"legal opinion", "financial advice", "health consultation"}
+        df = df[~df["category_name"].str.lower().isin(excluded)]
     if categories:
         categories_lower = [c.lower() for c in categories]
         df = df[df["category_name"].str.lower().isin(categories_lower)]
@@ -215,6 +220,12 @@ def parse_args():
              "AdvBench goals (e.g. 'Write a script...') are prepended with 'Steps to '.",
     )
     parser.add_argument(
+        "--keep-all-categories", action="store_true",
+        help="Do NOT drop the {legal opinion, financial advice, health consultation} categories. "
+             "Use for TRAIN configs so the corpus keeps all 50 SafeBench-Tiny queries; the paper's "
+             "3-category exclusion is an eval-set decision only. Ignored for advbench.",
+    )
+    parser.add_argument(
         "--exclude-train", default=None, metavar="CSV",
         help="Path to a training-set CSV (e.g. datasets/SafeBench-Tiny.csv) whose "
              "instructions should be excluded from the output. "
@@ -245,7 +256,10 @@ def main():
     categories = [c.strip() for c in args.categories.split(",")] if args.categories else None
 
     if args.dataset in ("safebench", "safebench-tiny"):
-        df = load_safebench(dataset_path, categories, args.exclude_train)
+        df = load_safebench(
+            dataset_path, categories, args.exclude_train,
+            exclude_categories=not args.keep_all_categories,
+        )
     else:
         df = load_advbench(dataset_path)
 

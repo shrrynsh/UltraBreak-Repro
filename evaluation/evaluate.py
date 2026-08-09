@@ -1,4 +1,5 @@
 import base64
+import sys
 import torch
 from PIL import Image, ImageFont, ImageDraw
 import os
@@ -13,6 +14,9 @@ import os
 
 from judge_llms.harmbench_judge import HarmBenchJudge
 from judge_llms.general_judge import GeneralJudge
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from create_attack_configs import normalize_instruction
 
 def infer_model_family(attack_result: str) -> str:
     lower_path = attack_result.lower()
@@ -36,28 +40,82 @@ def _strip_after_last_assistant_marker(text: str) -> str:
     return text.strip()
 
 
-def extract_assistant_text(response_str: str, model_family: str) -> str | None:
+def _extract_glm_answer(text: str) -> tuple[str, str]:
+    """
+    GLM-4.1V-Thinking emits '<think>reasoning</think><answer>reply</answer>'.
+    Return (answer_text, status).
+
+    Generation was capped at 512 new tokens, so a large fraction of rows run out
+    of budget inside the reasoning block and never produce an answer at all.
+    Those must score as empty rather than have the reasoning trace judged as if
+    it were the model's reply.
+    """
+    match = re.search(r"<answer>(.*?)(?:</answer>|$)", text, flags=re.DOTALL | re.IGNORECASE)
+    if match:
+        answer = match.group(1).strip()
+        status = "ok" if "</answer>" in text.lower() else "truncated_in_answer"
+        return answer, status
+
+    if re.search(r"</think>", text, flags=re.IGNORECASE):
+        # Reasoning closed but no <answer> tags — keep whatever followed it.
+        return re.sub(r"^.*?</think>", "", text, flags=re.DOTALL | re.IGNORECASE).strip(), "ok"
+
+    # Token budget ran out mid-reasoning: there is no answer to score.
+    return "", "truncated_in_think"
+
+
+def extract_assistant_text(response_str: str, model_family: str) -> tuple[str, str]:
     """
     Extract assistant text from a generation string.
     Handles model-family-specific chat formatting so the scorer sees only the
-    model's answer.
+    model's answer. Returns (text, status).
     """
     if not isinstance(response_str, str):
-        return None
+        return "", "missing"
 
     text = response_str.strip()
 
     if '[/INST]' in text:
-        return text.split('[/INST]')[-1].strip()
+        return text.split('[/INST]')[-1].strip(), "ok"
 
     if model_family == "glm":
-        text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL | re.IGNORECASE).strip()
-        return _strip_after_last_assistant_marker(text)
+        return _extract_glm_answer(text)
 
     if model_family == "qwen2_vl":
-        return _strip_after_last_assistant_marker(text)
+        return _strip_after_last_assistant_marker(text), "ok"
 
-    return text.strip()
+    return text.strip(), "ok"
+
+
+def resolve_behaviors(result_df, behaviors_csv: str | None, behaviors_col: str):
+    """
+    The HarmBench classifier scores a generation against a behavior string. When
+    a config was built with --normalize, its 'target' column holds the reworded
+    instruction ("Steps to write a script...") rather than the dataset's own
+    behavior ("Write a script..."), so the judge compares against text that
+    appears in no benchmark. Restore the canonical behavior by row order.
+    """
+    if not behaviors_csv:
+        return result_df["target"].tolist(), "config-target"
+
+    behaviors = pd.read_csv(behaviors_csv)[behaviors_col].str.strip().str.rstrip(".").tolist()
+    if len(behaviors) != len(result_df):
+        raise SystemExit(
+            f"Behavior source {behaviors_csv} has {len(behaviors)} rows but "
+            f"result file has {len(result_df)} — refusing to align by index."
+        )
+
+    # Guard the index-order assumption: every stored target must be either the
+    # canonical behavior or its normalized form.
+    for stored, canonical in zip(result_df["target"], behaviors):
+        stored = str(stored).strip()
+        if stored not in (canonical, normalize_instruction(canonical).rstrip(".")):
+            raise SystemExit(
+                f"Row order mismatch against {behaviors_csv}.\n"
+                f"  stored:    {stored!r}\n"
+                f"  canonical: {canonical!r}"
+            )
+    return behaviors, f"{behaviors_csv}:{behaviors_col}"
 
 
 def main(args):
@@ -71,13 +129,18 @@ def main(args):
     #output_file = f"{attack_result.rsplit('.', 1)[0]}_general_llama31.csv"
     print("Generating "+ output_file)
 
+    behaviors, behavior_source = resolve_behaviors(
+        result_df, args.behaviors_csv, args.behaviors_col
+    )
+    print(f"Model family: {model_family} | Behavior source: {behavior_source}")
+
     judge_outputs = []
     judge_decisions = []
+    extraction_statuses = []
 
-    for _, row in result_df.iterrows():
-        harmful_query = row["target"]
-        response_text = extract_assistant_text(row['response'], model_family) or ""
-        
+    for (_, row), harmful_query in zip(result_df.iterrows(), behaviors):
+        response_text, status = extract_assistant_text(row['response'], model_family)
+
         print("\n\n-----------------TARGET-----------------\n")
         print(harmful_query)
 
@@ -92,9 +155,12 @@ def main(args):
 
         judge_outputs.append(output)
         judge_decisions.append(decision)
- 
+        extraction_statuses.append(status)
+
     # Save results alongside input data
 
+    result_df['judge_behavior'] = behaviors
+    result_df['extraction_status'] = extraction_statuses
     result_df['judge_outputs'] = judge_outputs
     result_df['attack_success'] = judge_decisions
     asr = result_df['attack_success'].mean() * 100
@@ -121,6 +187,15 @@ def main(args):
     print(f"Attack Success Rate: {success_rate:.2%}")
     print(f"Non-Refusal Rate (NRR): {nrr:.2%}")
 
+    status_counts = result_df["extraction_status"].value_counts().to_dict()
+    print(f"Extraction status: {status_counts}")
+    no_answer = int((result_df["extraction_status"] == "truncated_in_think").sum())
+    if no_answer:
+        print(
+            f"WARNING: {no_answer}/{total_attempts} rows hit the generation cap "
+            f"before producing an answer and are scored as empty."
+        )
+
     result_df.to_csv(output_file)
 
 
@@ -129,6 +204,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--attack_result", type=str, default="results/test/Qwen/Qwen2.5-VL-7B-Instruct.csv")
     parser.add_argument("--output_suffix", type=str, default="_harmbench.csv")
+    parser.add_argument(
+        "--behaviors_csv", type=str, default=None,
+        help="Dataset CSV holding the canonical behavior strings (e.g. "
+             "datasets/adv_bench.csv). Use when the result file's 'target' "
+             "column was written from a --normalize'd config. Aligned by row order.",
+    )
+    parser.add_argument(
+        "--behaviors_col", type=str, default="goal",
+        help="Column in --behaviors_csv holding the behavior string.",
+    )
     args = parser.parse_args()
 
 
