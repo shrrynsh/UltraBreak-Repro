@@ -13,8 +13,21 @@ and feeds x_proj (the projected patch) into the patch-application operator A(),
 matching Eq. 10 A(x_blank, x_proj, l, r, s). The optimiser still updates the raw
 latent x; only what the model sees — and what gets saved as the deployable
 image — is the projected patch. The TV loss stays on the raw x, per Eq. 10
-L_TV(x). Everything else (Adam, lr=0.01, transforms, corpus, 224x224 random
-init) is unchanged from optimise.py so this isolates the projection's effect.
+L_TV(x). Everything else (Adam, lr=0.01, transforms, corpus, 224x224) is
+unchanged from optimise.py so this isolates the projection's effect.
+
+Two flags control how faithfully the projection is applied:
+
+  --clamp_latent   also clamp the raw latent to [0,1] after each step. The
+                   paper applies exactly one constraint and it sits INSIDE the
+                   projection, so this extra clamp makes the paper's own clip
+                   unreachable. Off by default; pass it to reproduce job 625.
+  --init_space     'unit'  = x ~ U(0,1) in latent space (what optimise.py did,
+                            back when x was the image itself)
+                   'image' = uniform random image mapped back through the
+                            projection, x = (p - beta) / gamma
+
+See repro_notes/DISCREPANCIES.md (D1, O1, O2) for the reasoning.
 """
 
 from PIL import Image
@@ -36,7 +49,22 @@ import json
 import pickle
 
 
-def initialise_patch(device, patch_size, image_path=None):
+def initialise_patch(device, patch_size, image_path=None, init_space="unit"):
+    """
+    init_space controls what "random initialisation" means once the projection
+    is active and adv_patch is a latent rather than the image itself.
+
+      "unit"  - x ~ U(0,1) in latent space. This is what optimise.py did, where
+                x WAS the image. Under the projection it starts the run inside
+                the narrow band gamma*[0,1]+beta = [0.41, 0.75], i.e. a washed
+                out mid-grey square with ~3.5x too little contrast.
+      "image" - draw a uniform random *image* in [0,1] and map it back through
+                the projection, x = (p - beta) / gamma, so the starting image
+                spans the full range as it did before the projection existed.
+    """
+    mean = torch.tensor(OPENAI_CLIP_MEAN, device=device).view(-1, 1, 1)
+    std = torch.tensor(OPENAI_CLIP_STD, device=device).view(-1, 1, 1)
+
     if image_path is not None:
         transform = transforms.Compose([
             transforms.Resize((patch_size, patch_size)),
@@ -44,9 +72,16 @@ def initialise_patch(device, patch_size, image_path=None):
         ])
         img = Image.open(image_path).convert("RGB")
         adv_patch = transform(img).to(device)
+        if init_space == "image":
+            # Checkpoints are saved PROJECTED, so invert the projection to
+            # recover the latent the optimiser was actually updating.
+            adv_patch = (adv_patch - mean) / std
+    elif init_space == "image":
+        adv_patch = (torch.rand(3, patch_size, patch_size, device=device) - mean) / std
     else:
         adv_patch = torch.rand(3, patch_size, patch_size, device=device)
 
+    adv_patch = adv_patch.detach().clone()
     adv_patch.requires_grad_()
     return adv_patch
 
@@ -90,21 +125,28 @@ def main(args=None):
 
     exp_name = args.exp_name if args else 'safebench-tiny_jailbroken_mode_proj_5000'
     base_epoch = args.base_epoch if args else 0
+    clamp_latent = args.clamp_latent if args else False
+    init_space = args.init_space if args else "unit"
 
     os.makedirs(f"outputs/{exp_name}/", exist_ok=True)
     target_df = pd.read_csv(train_config)
     target_df = target_df.fillna("")
 
     if base_epoch > 0:
-        adv_patch = initialise_patch(device, 224, f'outputs/{exp_name}/{base_epoch}.png')
+        adv_patch = initialise_patch(device, 224, f'outputs/{exp_name}/{base_epoch}.png', init_space)
     else:
-        adv_patch = initialise_patch(device, 224, None)
+        adv_patch = initialise_patch(device, 224, None, init_space)
 
     # Fixed per-channel projection parameters (CLIP normalisation statistics).
     gamma = torch.tensor(OPENAI_CLIP_STD, device=device)
     beta = torch.tensor(OPENAI_CLIP_MEAN, device=device)
     print(f"[proj] projection active: x_proj = clip(CLIP_STD * x + CLIP_MEAN, 0, 1)")
     print(f"[proj] gamma(CLIP_STD)={OPENAI_CLIP_STD}  beta(CLIP_MEAN)={OPENAI_CLIP_MEAN}")
+    print(f"[proj] clamp_latent={clamp_latent}  init_space={init_space}")
+    with torch.no_grad():
+        _img0 = project_to_constrained_space(adv_patch, gamma, beta)
+        print(f"[proj] init latent range [{adv_patch.min():+.3f}, {adv_patch.max():+.3f}]  "
+              f"-> image [{_img0.min():.3f}, {_img0.max():.3f}] std={_img0.std():.4f}")
 
     custom_loss = True
 
@@ -148,9 +190,14 @@ def main(args=None):
 
         optimizer.step()
 
-        # Keep the raw latent in a sane range; the projection then maps it into
-        # the constrained band that the model actually consumes.
-        adv_patch.data = torch.clamp(adv_patch.data, 0, 1)
+        # Section 3.2 applies exactly ONE constraint, and it lives inside the
+        # projection: x_proj = clip(gamma*x + beta, 0, 1). Clamping the raw
+        # latent as well makes that clip unreachable, since gamma*[0,1]+beta is
+        # a strict subset of [0,1] -- so the paper's clip can never bind and the
+        # deployable image is squeezed into ~27% of each channel's range.
+        # Off by default; --clamp_latent restores the old (job 625) behaviour.
+        if clamp_latent:
+            adv_patch.data = torch.clamp(adv_patch.data, 0, 1)
 
         if epoch % 20 == 0:
             with torch.no_grad():
@@ -205,4 +252,10 @@ if __name__ == "__main__":
     parser.add_argument("--exp_name", type=str, default="safebench-tiny_jailbroken_mode_proj_5000")
     parser.add_argument("--num_epochs", type=int, default=5000)
     parser.add_argument("--base_epoch", type=int, default=0)
+    parser.add_argument("--clamp_latent", action="store_true",
+                        help="Legacy: also clamp the raw latent to [0,1] after each step. "
+                             "Makes the Section 3.2 clip unreachable. Reproduces job 625.")
+    parser.add_argument("--init_space", type=str, default="unit", choices=["unit", "image"],
+                        help="'unit': x ~ U(0,1) in latent space (legacy). "
+                             "'image': uniform random image mapped back through the projection.")
     main(parser.parse_args())
