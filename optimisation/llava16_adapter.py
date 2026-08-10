@@ -89,7 +89,12 @@ class Llava16Adapter(BaseModelAdapter):
             # apply the adversarial patch to only the first preprocessed image as an approximation
             # better results may be obtained by fully mimicking the image preprocessing of llava
             if added < 1:
-                patched = apply_random_patch(img, normalised_patch)
+                patched = apply_random_patch(
+                    img, normalised_patch,
+                    scale_range=self.cfg.scale_range,
+                    rotation_range=self.cfg.rotation_range,
+                    transforms_enabled=self.cfg.transforms,
+                )
                 patched_imgs.append(patched)
                 added += 1
             else:
@@ -162,7 +167,15 @@ class Llava16Adapter(BaseModelAdapter):
     
            
             logits = outputs.logits 
-            loss = semantic_similarity_loss(logits, labels, embedding_matrix, weights = weights.unsqueeze(0), mode="attention", verbose=print_probs)
+            loss = semantic_similarity_loss(
+                logits, labels, embedding_matrix,
+                weights=weights.unsqueeze(0),
+                mode=self.cfg.loss_mode,
+                verbose=print_probs,
+                tau=self.cfg.tau,
+                embed_noise=self.cfg.embed_noise,
+                pos_alpha=self.cfg.pos_alpha,
+            )
             #loss = self.loss_function(logits, labels, weights.unsqueeze(0)) * multiplier
             return loss
         return loss

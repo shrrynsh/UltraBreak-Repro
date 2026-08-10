@@ -34,7 +34,13 @@ from PIL import Image
 
 from llava16_adapter import Llava16Adapter
 from qwen2_adapter import Qwen2Adapter
-from utils import project_patch, OPENAI_CLIP_MEAN, OPENAI_CLIP_STD
+from utils import (
+    AblationConfig,
+    OPENAI_CLIP_MEAN,
+    OPENAI_CLIP_STD,
+    project_patch,
+    set_seed,
+)
 
 import torch.optim as optim
 
@@ -115,18 +121,58 @@ def project_to_constrained_space(adv_patch, gamma, beta):
     return torch.clamp(projected, 0.0, 1.0)
 
 
+SURROGATES = {
+    "qwen": ("Qwen/Qwen2-VL-7B-Instruct", Qwen2Adapter),
+    "llava": ("llava-hf/llava-v1.6-mistral-7b-hf", Llava16Adapter),
+}
+
+
 def main(args=None):
     device = "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
 
     train_config = args.train_config if args else "./train_configs/safebench-tiny_jailbroken_mode.csv"
-    qwen_adapter = Qwen2Adapter("Qwen/Qwen2-VL-7B-Instruct", patch_only=False)
-
-    ensemble = [qwen_adapter]
 
     exp_name = args.exp_name if args else 'safebench-tiny_jailbroken_mode_proj_5000'
     base_epoch = args.base_epoch if args else 0
-    clamp_latent = args.clamp_latent if args else False
     init_space = args.init_space if args else "unit"
+    projection = not args.no_projection
+    # Without the projection the latent IS the image, so the released code's
+    # clamp(x, 0, 1) is the only thing keeping it in range and must stay on.
+    clamp_latent = args.clamp_latent or not projection
+    lr = args.lr
+    num_epochs = args.num_epochs if args else 5000
+    tv_weight = args.tv_weight
+    l2_weight = args.l2_weight
+    custom_loss = args.loss == "semantic"
+
+    if not projection and init_space == "image":
+        raise SystemExit("--init_space image is meaningless without the projection; use 'unit'.")
+
+    # Seed before anything samples: patch init, transform schedule, embedding noise.
+    if args.seed is not None:
+        set_seed(args.seed)
+        print(f"[cfg] seed={args.seed}")
+    else:
+        print("[cfg] WARNING: no --seed given; this run is not reproducible and "
+              "cannot contribute to a variance study.")
+
+    cfg = AblationConfig(
+        loss=args.loss,
+        loss_mode=args.loss_mode,
+        tau=args.tau,
+        embed_noise=args.embed_noise,
+        pos_alpha=args.pos_alpha,
+        transforms=not args.no_transforms,
+    )
+
+    surrogate_names = [s.strip() for s in args.surrogates.split(",") if s.strip()]
+    unknown = [s for s in surrogate_names if s not in SURROGATES]
+    if unknown:
+        raise SystemExit(f"Unknown surrogate(s) {unknown}; choose from {sorted(SURROGATES)}")
+    ensemble = []
+    for name in surrogate_names:
+        model_id, adapter_cls = SURROGATES[name]
+        ensemble.append(adapter_cls(model_id, patch_only=False, cfg=cfg))
 
     os.makedirs(f"outputs/{exp_name}/", exist_ok=True)
     target_df = pd.read_csv(train_config)
@@ -140,27 +186,50 @@ def main(args=None):
     # Fixed per-channel projection parameters (CLIP normalisation statistics).
     gamma = torch.tensor(OPENAI_CLIP_STD, device=device)
     beta = torch.tensor(OPENAI_CLIP_MEAN, device=device)
-    print(f"[proj] projection active: x_proj = clip(CLIP_STD * x + CLIP_MEAN, 0, 1)")
-    print(f"[proj] gamma(CLIP_STD)={OPENAI_CLIP_STD}  beta(CLIP_MEAN)={OPENAI_CLIP_MEAN}")
+    if projection:
+        print(f"[proj] projection active: x_proj = clip(CLIP_STD * x + CLIP_MEAN, 0, 1)")
+        print(f"[proj] gamma(CLIP_STD)={OPENAI_CLIP_STD}  beta(CLIP_MEAN)={OPENAI_CLIP_MEAN}")
+    else:
+        print("[proj] projection DISABLED — reproducing the released code's path "
+              "(raw patch, clamp(x, 0, 1) only)")
     print(f"[proj] clamp_latent={clamp_latent}  init_space={init_space}")
+
+    def project(x):
+        """The deployable image for the current latent."""
+        return project_to_constrained_space(x, gamma, beta) if projection else x
+
     with torch.no_grad():
-        _img0 = project_to_constrained_space(adv_patch, gamma, beta)
+        _img0 = project(adv_patch)
         print(f"[proj] init latent range [{adv_patch.min():+.3f}, {adv_patch.max():+.3f}]  "
               f"-> image [{_img0.min():.3f}, {_img0.max():.3f}] std={_img0.std():.4f}")
 
-    custom_loss = True
+    # Record exactly what this run was, next to its outputs.
+    resolved = {
+        "exp_name": exp_name,
+        "train_config": train_config,
+        "seed": args.seed,
+        "surrogates": surrogate_names,
+        "projection": projection,
+        "clamp_latent": clamp_latent,
+        "init_space": init_space,
+        "lr": lr,
+        "num_epochs": num_epochs,
+        "base_epoch": base_epoch,
+        "tv_weight": tv_weight,
+        "l2_weight": l2_weight,
+        "ablation": cfg.as_dict(),
+        "torch": torch.__version__,
+    }
+    with open(f"outputs/{exp_name}/run_config.json", "w") as fh:
+        json.dump(resolved, fh, indent=2)
+    print(f"[cfg] {json.dumps(resolved)}")
 
-    lr = 0.01
     optimizer = optim.Adam([adv_patch], lr=lr)
 
-    num_epochs = args.num_epochs if args else 5000
     patience = 5000
     best_loss = float('inf')
     best_img = None
     no_improve_count = 0
-
-    tv_weight = 0.5
-    l2_weight = 0.0
 
     losses = []
 
@@ -178,7 +247,7 @@ def main(args=None):
                 tv_loss = total_variation(adv_patch)
 
                 # Project before the patch-application operator: model sees x_proj.
-                proj_patch = project_to_constrained_space(adv_patch, gamma, beta)
+                proj_patch = project(adv_patch)
 
                 model_loss = model.compute_loss(row, proj_patch, '', custom_loss=custom_loss, print_probs=print_probs)
                 loss = model_loss + tv_loss * tv_weight + l2_loss * l2_weight
@@ -205,7 +274,7 @@ def main(args=None):
                 save_path = f"outputs/{exp_name}/{epoch}.png"
                 # Save the PROJECTED patch — that is the deployable image and
                 # what inference must use for consistency with training.
-                save_tensor_as_image(project_to_constrained_space(adv_patch, gamma, beta), save_path)
+                save_tensor_as_image(project(adv_patch), save_path)
 
                 for model in ensemble:
                     print(model.generate(target_df.iloc[0]['text'], save_path))
@@ -240,8 +309,7 @@ def main(args=None):
             break
 
     # Final save is also the projected patch.
-    save_tensor_as_image(project_to_constrained_space(adv_patch, gamma, beta),
-                         f"outputs/{exp_name}/adv_patch_{epoch}.png")
+    save_tensor_as_image(project(adv_patch), f"outputs/{exp_name}/adv_patch_{epoch}.png")
     return
 
 
@@ -258,4 +326,47 @@ if __name__ == "__main__":
     parser.add_argument("--init_space", type=str, default="unit", choices=["unit", "image"],
                         help="'unit': x ~ U(0,1) in latent space (legacy). "
                              "'image': uniform random image mapped back through the projection.")
+    parser.add_argument("--no_projection", action="store_true",
+                        help="Disable the Section 3.2 projection entirely, reproducing the "
+                             "released code's path (raw patch + clamp(x,0,1)). Implies "
+                             "--clamp_latent, since the latent is then the image itself.")
+
+    # Reproducibility
+    parser.add_argument("--seed", type=int, default=None,
+                        help="Seed for patch init, the transform schedule and embedding noise. "
+                             "The released code seeds nothing; without this, run-to-run "
+                             "variance is unquantified.")
+
+    # Optimisation (Table 4 defaults)
+    parser.add_argument("--lr", type=float, default=0.01)
+    parser.add_argument("--tv_weight", type=float, default=0.5,
+                        help="lambda_TV (Table 4: 0.5). Set 0 for the no-TV ablation cell.")
+    parser.add_argument("--l2_weight", type=float, default=0.0,
+                        help="Undocumented L2 pull toward mid-grey; inert at 0 (see "
+                             "DISCREPANCIES.md D8). Its neutral point is 0.5 in pixel space "
+                             "but 0.0 in latent space, so do not enable it with --projection.")
+
+    # Surrogate (paper: "A single surrogate is sufficient")
+    parser.add_argument("--surrogates", type=str, default="qwen",
+                        help="Comma-separated surrogate list, e.g. 'qwen' or 'qwen,llava'. "
+                             "More than one reproduces the ensemble the paper argues is "
+                             "unnecessary.")
+
+    # Semantic loss (paper: "Effect of Semantic Loss")
+    parser.add_argument("--loss", type=str, default="semantic", choices=["semantic", "ce"],
+                        help="'semantic' is Eq. 8; 'ce' is the cross-entropy baseline.")
+    parser.add_argument("--loss_mode", type=str, default="attention", choices=["token", "attention"],
+                        help="'token' is exact per-token matching (the tau->0 end); "
+                             "'attention' is the relaxed objective the paper uses.")
+    parser.add_argument("--tau", type=float, default=0.5,
+                        help="Attention temperature (Table 4: 0.5). Large values approximate "
+                             "the tau->infinity cell; only meaningful with --loss_mode attention.")
+    parser.add_argument("--embed_noise", type=float, default=1e-4, help="Table 4 epsilon.")
+    parser.add_argument("--pos_alpha", type=float, default=0.01)
+
+    # Input transformations (paper: "Effect of Transformation and Regularisation")
+    parser.add_argument("--no_transforms", action="store_true",
+                        help="Composite the patch unscaled, unrotated and centred — the "
+                             "paper's 'no constraints' ablation cell.")
+
     main(parser.parse_args())

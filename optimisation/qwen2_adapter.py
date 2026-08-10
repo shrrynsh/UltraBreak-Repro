@@ -178,7 +178,12 @@ class Qwen2Adapter(BaseModelAdapter):
             transformed_patch = self.preprocess_patched(patch, image_grid_thw)
             return transformed_patch.unsqueeze(0).expand(B, -1, -1) 
      
-        patched_img = apply_random_patch( empty_img, patch, scale_range=(0.8, 1.2), rotation_range=(-15, 15))       
+        patched_img = apply_random_patch(
+            empty_img, patch,
+            scale_range=self.cfg.scale_range,
+            rotation_range=self.cfg.rotation_range,
+            transforms_enabled=self.cfg.transforms,
+        )
         transformed_patch = self.preprocess_patched(patched_img, image_grid_thw)
 
         # Create a mask for regions not equal to -1
@@ -267,8 +272,16 @@ class Qwen2Adapter(BaseModelAdapter):
             self.log_topk(outputs, labels)
 
         if custom_loss:
-            logits = outputs.logits 
-            loss = semantic_similarity_loss(logits, labels, embedding_matrix, weights = weights.unsqueeze(0), mode="attention", verbose=print_probs)
+            logits = outputs.logits
+            loss = semantic_similarity_loss(
+                logits, labels, embedding_matrix,
+                weights=weights.unsqueeze(0),
+                mode=self.cfg.loss_mode,
+                verbose=print_probs,
+                tau=self.cfg.tau,
+                embed_noise=self.cfg.embed_noise,
+                pos_alpha=self.cfg.pos_alpha,
+            )
 
         else:
             logits = outputs.logits 

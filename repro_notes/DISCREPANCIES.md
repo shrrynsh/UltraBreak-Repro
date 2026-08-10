@@ -26,8 +26,9 @@
 | D3 | TV loss: Eq. 9 is isotropic+summed, code is anisotropic+averaged | Documentation | Note to authors; **do not change code** |
 | D4 | γ, β typed as scalars in ℝ but assigned per-channel 3-vectors | Minor | Note to authors |
 | D5 | Patch location bound is dynamic, not Table 4's fixed `l_max = 112` | Minor | No change |
-| D6 | `adv_bench.csv` has 520 rows; paper says 500 | Minor | No change |
-| D7 | No random seed is set anywhere | Minor (reproducibility) | Note in write-up |
+| D6 | Paper says AdvBench = 500; its own numbers are all `n/520` | Documentation | Erratum note; our 520-row eval is correct |
+| D7 | No random seed is set anywhere | Minor (reproducibility) | **Fixed in this fork** (`--seed`); note in write-up |
+| D9 | Some of our eval configs kept the 35 SafeBench-Tiny training queries | **Ours** | **Fixed** — summariser filters to the canonical 315 |
 | D8 | Undocumented L2 term in code, weight 0.0 | Minor | No change |
 | R1 | AdvBench prompt normalisation — **investigated, not a discrepancy** | — | **Do not report** |
 | O1 | Our projection double-constrains the latent | **Ours** | Fix before next run |
@@ -47,11 +48,22 @@
 
 > For the affine projection step, we used CLIP's normalisation statistics, γ=CLIP_STD and β=CLIP_MEAN, and clipped pixel values back to [0,1].
 
-**Code.** `project_patch()` (`optimisation/utils.py:104`) has **zero call sites**. The `patch_only=False` path passes the raw patch straight to the model (`optimisation/qwen2_adapter.py:248`), and the only range constraint is `adv_patch.data = torch.clamp(adv_patch.data, 0, 1)` at `optimisation/optimise.py:142`. That is the projection with γ=1, β=0 — the affine collapses to identity and only the clip survives.
+**Code.** `project_patch()` has **zero call sites** in the authors' release. The `patch_only=False` path passes the raw patch straight to the model, and the only range constraint is `adv_patch.data = torch.clamp(adv_patch.data, 0, 1)`. That is the projection with γ=1, β=0 — the affine collapses to identity and only the clip survives.
+
+Verify against the authors' commit directly, not the working tree — this fork has since modified these files:
+
+```
+$ git grep -n "project_patch" c4c276d -- optimisation/ | grep -v "def project_patch" | wc -l
+0
+```
+
+Our own changes to `optimisation/` are CLI plumbing and ablation flags whose defaults reproduce Table 4; `optimise.py`'s diff against `c4c276d` touches only argument parsing, never the objective, the transforms or the clamp.
 
 **Impact.** This is the leading candidate cause of Defect B. Wiring the projection in (`optimise_proj.py`, job 625 vs job 622) moved SafeBench +18.4 and AdvBench +20.6, and — the stronger evidence — changed the loss trajectory from stalled to still-descending at step 1400. See `FINDINGS.md` § "Implicated: the omitted Section 3.2 projection".
 
-**Confidence.** The dead-code fact is certain (verified against commit `c4c276d`). Whether `ultrabreak.png` itself was trained with the projection is **unknown** — that is email Q1.
+**Confidence.** The dead-code fact is certain (verified against commit `c4c276d`, as above). Whether `ultrabreak.png` itself was trained with the projection is **unknown** — that is email Q1.
+
+**Note (2026-08-10).** The released artifact now reproduces the paper's SafeBench number *exactly* (257/315 = 81.59%) once evaluated on the canonical 315 set with the authors' own judge. So D1 is a training-side discrepancy only: it does not affect whether the released image scores as reported, just whether the released code can produce such an image.
 
 ---
 
@@ -157,17 +169,40 @@ The identity case is off by one (`int(...) + 1` in the bounding-box estimate). T
 
 ---
 
-## D6 — AdvBench row count · Minor
+## D6 — AdvBench row count: the paper says 500, its numbers say 520 · Documentation
 
-Paper: *"AdvBench comprises 500 harmful textual instructions."* `datasets/adv_bench.csv` has **520** rows — the standard AdvBench `harmful_behaviors` set, which contains near-duplicates. Immaterial; no change.
+Paper: *"AdvBench comprises 500 harmful textual instructions."* `datasets/adv_bench.csv` has **520** rows — the standard AdvBench `harmful_behaviors` set, which contains near-duplicates.
+
+**Resolved 2026-08-10: the reported numbers were computed on 520.** An ASR printed to two decimals is a rounded `n/N`, so N is recoverable. `evaluation/infer_eval_set_size.py` tests each candidate against all 12 reported AdvBench values (UltraBreak + No-Attack columns):
+
+| N | fit | meaning |
+|---|---|---|
+| **520** | **12/12** (p ≈ 4e-16 by chance) | the row count of `adv_bench.csv` |
+| 500 | 2/12 | the count stated in the paper |
+
+72.69% is exactly 378/520; with 500 rows it would require 363.45 successes, which is not an integer. Same method confirms SafeBench = **315** (12/12; 350 fits 2/12) and MM-SafetyBench = **1680** (12/12) — and the MM-SafetyBench text-only set does contain exactly 1680 questions, independently confirming it.
+
+**Consequence: our 520-row AdvBench evaluation is correct, not a deviation.** The discrepancy is in the paper's prose, not its arithmetic. Worth one clause to the authors as an erratum. No code change.
 
 ---
 
-## D7 — No random seed · Minor (reproducibility)
+## D9 — Our evaluation set kept the training queries · **Ours**
+
+Several of this fork's attack configs were built without `--exclude-train`, giving **350 rows** where the paper's SafeBench evaluation set is **315** (500 − 150 excluded topics − 35 SafeBench-Tiny queries that survive the topic filter). The reference number 77.71% was measured on that contaminated set.
+
+Corrected, the same generations give **78.73%** (v2) and **81.59%** (v1). The patch scored *worse* on its own training queries (25/35 = 71.43%) than on held-out ones, so the contamination was mildly deflating.
+
+**Fixed:** `evaluation/summarise_asr.py` now derives the canonical 315 set from `datasets/` (not from a generated config, which could drift with whatever flags it was built with) and filters every SafeBench run to it, reporting what it dropped. `--raw` disables it.
+
+---
+
+## D7 — No random seed · Minor (reproducibility) · **fixed in this fork**
 
 `grep` for `manual_seed` / `random.seed` / `np.random.seed` across `optimisation/` returns **nothing**. Training samples random transformation parameters every step (`utils.py:37-39`), initialises the patch randomly, and adds Gaussian noise to target embeddings (`utils.py:185`) — all unseeded. The paper does not mention seeding.
 
 **Consequence for our own claims:** run-to-run variance is unquantified, so the +18.4 / +20.6 projection deltas rest on a single run pair (n = 1, no seed control). Already carried as a caveat in `FINDINGS.md`; repeated here because it limits every number in this study, not just that one.
+
+**Fixed in this fork.** `optimise_proj.py --seed` seeds `random`, `numpy` and `torch` (CPU + CUDA), covering all three sources; `optimisation/test_reproducibility.py` asserts the seed reaches each of them. One limit to state honestly in the write-up: this pins the *sampling*, not the arithmetic — `grid_sample`'s backward pass has no deterministic CUDA kernel, and every training step goes through it, so two seeded GPU runs still drift slightly. Seeding makes an n>1 variance study possible; it does not make training bitwise reproducible.
 
 ---
 

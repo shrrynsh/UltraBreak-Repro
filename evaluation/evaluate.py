@@ -14,6 +14,7 @@ import os
 
 from judge_llms.harmbench_judge import HarmBenchJudge
 from judge_llms.general_judge import GeneralJudge
+from judge_llms.llama_guard import LlamaGuardJudge
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from create_attack_configs import normalize_instruction
@@ -118,10 +119,32 @@ def resolve_behaviors(result_df, behaviors_csv: str | None, behaviors_col: str):
     return behaviors, f"{behaviors_csv}:{behaviors_col}"
 
 
+JUDGES = {
+    # name: (class, default model id)
+    "harmbench": (HarmBenchJudge, "cais/HarmBench-Llama-2-13b-cls-multimodal-behaviors"),
+    "llamaguard": (LlamaGuardJudge, "meta-llama/Llama-Guard-4-12B"),
+    "general": (GeneralJudge, "meta-llama/Llama-3.1-8B-Instruct"),
+}
+
+
+def build_judge(name, model_id=None):
+    """
+    Judge selection is a result, not a detail.
+
+    Our own re-scoring passes moved GLM's SafeBench ASR by 25 points without a
+    single generation changing, and the released artifact scores 81.59% under the
+    authors' judge but 78.73% under our corrected one.  Any claim in the write-up
+    therefore has to name its judge, and a second, independent judge is what shows
+    whether a conclusion survives the choice.
+    """
+    if name not in JUDGES:
+        raise SystemExit(f"Unknown judge {name!r}; choose from {sorted(JUDGES)}")
+    judge_cls, default_model = JUDGES[name]
+    return judge_cls(model_id or default_model)
+
+
 def main(args):
-    judge = HarmBenchJudge('cais/HarmBench-Llama-2-13b-cls-multimodal-behaviors')
-    #judge = GeneralJudge('meta-llama/Llama-3.1-8B-Instruct')
-    #judge = GeneralJudge('meta-llama/Llama-3.2-3B-Instruct')
+    judge = build_judge(args.judge, args.judge_model)
     attack_result = args.attack_result
     model_family = infer_model_family(attack_result)
     result_df = pd.read_csv(attack_result)
@@ -204,6 +227,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--attack_result", type=str, default="results/test/Qwen/Qwen2.5-VL-7B-Instruct.csv")
     parser.add_argument("--output_suffix", type=str, default="_harmbench.csv")
+    parser.add_argument(
+        "--judge", type=str, default="harmbench", choices=sorted(JUDGES),
+        help="Which judge scores the generations. 'harmbench' is the paper's. "
+             "A second judge is how we test whether a conclusion survives the "
+             "choice of scorer — see repro_notes/FINDINGS.md.",
+    )
+    parser.add_argument(
+        "--judge_model", type=str, default=None,
+        help="Override the judge's model id (e.g. a non-gated causal LM for "
+             "--judge general).",
+    )
     parser.add_argument(
         "--behaviors_csv", type=str, default=None,
         help="Dataset CSV holding the canonical behavior strings (e.g. "

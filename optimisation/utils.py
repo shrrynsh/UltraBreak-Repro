@@ -13,19 +13,79 @@ import re
 
 import random
 import math
+import os
+from dataclasses import dataclass, asdict
+
+import numpy as np
 
 OPENAI_CLIP_MEAN = (0.48145466, 0.4578275, 0.40821073)
 OPENAI_CLIP_STD = (0.26862954, 0.26130258, 0.27577711)
-def apply_random_patch(image_tensor, patch, verbose=False, scale_range=(0.8, 1.2), rotation_range=(-15, 15)):
+
+
+def set_seed(seed, deterministic=False):
+    """
+    Seed every RNG the optimisation touches.
+
+    The released code seeds nothing, so patch initialisation, the per-step
+    transform schedule (angle/scale/placement) and the target-embedding noise all
+    vary run to run and no delta can be separated from run-to-run variance.
+    Seeding those three is what makes an n>1 study possible.
+
+    `deterministic` additionally asks torch for deterministic kernels.  Note that
+    grid_sample's backward pass -- which every training step goes through, via
+    apply_random_patch -- has no deterministic CUDA implementation, so this will
+    RAISE rather than silently succeed.  It is here for CPU-side checks, not for
+    training runs: seeding alone removes the dominant variance, but bitwise
+    reproducibility on GPU is not achievable for this model.
+    """
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    if deterministic:
+        os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
+        torch.use_deterministic_algorithms(True)
+
+
+@dataclass(frozen=True)
+class AblationConfig:
+    """
+    Every knob the paper's analysis sections vary, in one place.
+
+    Defaults reproduce the paper's Table 4 exactly, so an unconfigured run is the
+    paper's configuration.  The adapters read this instead of the constants that
+    used to be hardcoded at their call sites, which is what lets E5/E6 sweep them
+    from job-script flags rather than by editing source between runs.
+    """
+    # Semantic loss (paper: "Effect of Semantic Loss")
+    loss: str = "semantic"          # 'semantic' (Eq. 8) | 'ce' (cross-entropy baseline)
+    loss_mode: str = "attention"    # 'token' (exact match) | 'attention' (relaxed)
+    tau: float = 0.5                # Table 4 attention temperature
+    embed_noise: float = 1e-4       # Table 4 epsilon
+    pos_alpha: float = 0.01         # positional-encoding weight
+
+    # Input transformations (paper: "Effect of Transformation and Regularisation")
+    transforms: bool = True
+    scale_range: tuple = (0.8, 1.2)         # Table 4
+    rotation_range: tuple = (-15.0, 15.0)   # Table 4
+
+    def as_dict(self):
+        return asdict(self)
+
+
+def apply_random_patch(image_tensor, patch, verbose=False, scale_range=(0.8, 1.2), rotation_range=(-15, 15),
+                       transforms_enabled=True):
     """
     Applies a differentiably transformed patch to a clone of the input image.
-    
+
     Args:
         image_tensor (Tensor): [C, H, W] image tensor.
         patch (Tensor): [C, h, w] patch tensor.
         scale_range (tuple): (min_scale, max_scale) for random scaling.
         rotation_range (tuple): (min_deg, max_deg) for random rotation.
-        
+        transforms_enabled (bool): when False, composite the patch unscaled,
+            unrotated and centred -- the paper's "no constraints" ablation cell.
+
     Returns:
         Tensor: Patched image tensor [C, H, W].
     """
@@ -34,9 +94,13 @@ def apply_random_patch(image_tensor, patch, verbose=False, scale_range=(0.8, 1.2
     _, ph, pw = patch.shape
 
     # Random scale and rotation
-    angle_deg = random.uniform(*rotation_range)
+    if transforms_enabled:
+        angle_deg = random.uniform(*rotation_range)
+        scale = random.uniform(*scale_range)
+    else:
+        angle_deg = 0.0
+        scale = 1.0
     angle_rad = math.radians(angle_deg)
-    scale = random.uniform(*scale_range)
 
     # Estimate the largest possible size after rotation + scale
     
@@ -81,8 +145,12 @@ def apply_random_patch(image_tensor, patch, verbose=False, scale_range=(0.8, 1.2
     # Random placement (ensure it fits)
     if tph > H or tpw > W:
         raise ValueError("Transformed patch is too large for the image. Consider reducing scale_range.")
-    top = random.randint(0, H - tph)
-    left = random.randint(0, W - tpw)
+    if transforms_enabled:
+        top = random.randint(0, H - tph)
+        left = random.randint(0, W - tpw)
+    else:
+        top = (H - tph) // 2
+        left = (W - tpw) // 2
 
     # Region from image
     region = image_tensor[:, top:top+tph, left:left+tpw].unsqueeze(0)  # [1, C, tph, tpw]
@@ -140,9 +208,15 @@ def sinusoidal_positional_encoding(seq_len, dim):
 
 
 
-def semantic_similarity_loss(logits, labels, embedding_matrix, weights = None, mode="token", ignore_index=-100, verbose=False):
+def semantic_similarity_loss(logits, labels, embedding_matrix, weights = None, mode="token", ignore_index=-100, verbose=False,
+                             tau=0.5, embed_noise=1e-4, pos_alpha=0.01):
         """
         Compute semantic similarity loss between predicted token distributions and target tokens.
+
+        `mode`, `tau`, `embed_noise` and `pos_alpha` were hardcoded here; they are
+        parameters so the paper's "Effect of Semantic Loss" ablation (CE / tau=0 /
+        tau=0.5 / tau->inf) can be swept from the command line.  Defaults are the
+        paper's Table 4 values.
 
         Returns:
             scalar loss
@@ -181,19 +255,19 @@ def semantic_similarity_loss(logits, labels, embedding_matrix, weights = None, m
             """
 
             # noise scale
-            epsilon = 1e-4 
+            epsilon = embed_noise
             noise = torch.randn_like(expected_embeddings) * epsilon
             expected_embeddings = expected_embeddings + noise
-            
-            tau = 0.5  # controls distribution 
+
+            # tau controls the distribution; supplied by the caller
 
             # Mask for valid tokens
             mask = (labels != ignore_index).float()  # [B, T]
-            
+
             # Compute positional encoding and add to embeddings
             pos_enc = sinusoidal_positional_encoding(T, D)
-            alpha = 0.01  # try values in [0.01, 1.0]
-            
+            alpha = pos_alpha  # try values in [0.01, 1.0]
+
             expected_pos = expected_embeddings + alpha * pos_enc
             target_pos   = target_embeddings   + alpha * pos_enc
         

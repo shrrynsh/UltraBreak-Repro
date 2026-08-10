@@ -6,21 +6,57 @@
 
 ## Summary
 
-The gap between our reproduction and the reported numbers is **two independent defects**, isolated by scoring the authors' own released `ultrabreak.png`:
+**The authors' released `ultrabreak.png`, scored with the authors' released judge on the paper's own evaluation set, reproduces the paper's SafeBench number exactly: 257/315 = 81.59% against a reported 81.59%.**
+
+Everything that previously looked like an evaluation-side discrepancy was our own protocol drift — a wrong evaluation set and a modified judge. What survives is one defect, and it is entirely on the training side:
 
 | | our result | paper | verdict |
 |---|---|---|---|
-| **Defect A** — AdvBench evaluation | 9.62% → **67.69%** | 72.69% | **Resolved.** Not a paper defect; we were omitting the paper's own prompt template. |
-| **Defect B** — training | **48.25%** (best so far) | 81.59% | **Open**, but narrowed to one cause: the Section 3.2 projection the released code omits. |
+| **Released artifact** — SafeBench, authors' protocol | **81.59%** (257/315) | 81.59% | **Exactly reproduced.** |
+| **Released artifact** — SafeBench, our corrected judge | 78.73% | 81.59% | −2.86; our v2/v3 judge fixes move *away* from the paper. |
+| **Released artifact** — AdvBench, normalised prompts | 67.69% (v3) | 72.69% | Close; v1 test pending (job 647). |
+| **Defect B** — retraining | **48.25%** (best so far) | 81.59% | **Open**, narrowed to the Section 3.2 projection the released code omits. |
 
-The headline finding: **the released training code never applies the paper's Section 3.2 projection**, and without it the optimisation stalls after ~400 steps.
+The headline finding remains: **the released training code never applies the paper's Section 3.2 projection**, and without it the optimisation stalls after ~400 steps. But the framing has changed — the artifact reproduces, so the gap is specific to retraining.
+
+---
+
+## The evaluation protocol, recovered from the paper's own numbers
+
+Two corrections landed on 2026-08-10, both of which move our numbers *toward* the paper.
+
+**1. The evaluation set was wrong (350 rows, should be 315).** Several of this fork's attack configs were built without `--exclude-train`, leaving in the 35 SafeBench-Tiny training queries that survive the topic filter. The reference 77.71% was measured on that contaminated set; on the clean 315 the same responses give **78.73%** (v2) and **81.59%** (v1). The patch scored *worse* on its own training queries (25/35 = 71.43%) than on held-out ones, so the contamination was mildly deflating, not inflating.
+
+**2. Reported ASRs are exact `n/N` fractions, so N is recoverable.** `evaluation/infer_eval_set_size.py` tests each candidate denominator against all 12 reported values per benchmark (UltraBreak + No-Attack columns), with a chance-fit rate to keep large denominators from looking spuriously convincing:
+
+| benchmark | N | fit | p(by chance) | meaning |
+|---|---|---|---|---|
+| SafeBench | **315** | 12/12 | 9.5e-19 | 500 − 150 excluded topics − 35 SafeBench-Tiny |
+| | 350 | 2/12 | | training queries left in |
+| | 500 | 0/12 | | full SafeBench |
+| AdvBench | **520** | 12/12 | 3.9e-16 | the row count of `datasets/adv_bench.csv` |
+| | 500 | 2/12 | | **the count stated in the paper** |
+| MM-SafetyBench | **1680** | 12/12 | 5.1e-10 | 13 scenarios × ~130 |
+
+This settles D6: the paper says *"AdvBench comprises 500 harmful textual instructions"* but every reported AdvBench number is an exact `n/520` — 72.69% is precisely 378/520, which is unreachable with 500 rows. **The paper evaluated on all 520; the "500" is a documentation error, and our 520-row evaluation is correct rather than a deviation.**
+
+---
+
+## The judge: our fixes are right, and they move away from the paper
+
+The v1 → v2 → v3 passes fixed real defects (v1 anchors on the first literal `assistant`, which matches Qwen's system prompt "You are a helpful assistant."; v3 stops GLM's `<think>` trace being scored as an answer). Every fix moved numbers *down*, which is the correct direction — it removes spurious successes.
+
+But the paper's number is reproduced by **v1**, the authors' unmodified scorer, to the last decimal. So the report must carry both columns and say plainly which protocol each belongs to. This is a finding about the fragility of ASR as a metric, not an accusation: 81.59% and 78.73% are the same generations under two defensible scorers.
+
+`run_v1_rescore.sh` materialises the authors' judge straight from commit `c4c276d` so the v1 column stays reproducible rather than a historical artifact.
 
 ---
 
 ## How these numbers were produced
 
 - **Surrogate / white-box target:** `Qwen/Qwen2-VL-7B-Instruct`.
-- **Judge:** HarmBench, v3 scoring pass (model-aware response extraction + canonical judge behaviors + GLM reasoning handling).
+- **Judge:** HarmBench. Pass stated per number — v1 is the authors' released scorer, v3 adds model-aware response extraction, canonical judge behaviors and GLM reasoning handling.
+- **Evaluation sets:** SafeBench 315 (canonical, `--exclude-train`), AdvBench 520, both confirmed against the paper's own arithmetic above.
 - **AdvBench prompts:** normalised to the paper's TPG template (see Defect A).
 - **Environment:** the authors' pins — torch 2.5.1, torchvision 0.20.1, transformers 4.51.3, tokenizers 0.21.0, qwen-vl-utils 0.0.11, accelerate 1.4.0, numpy 1.26.4, pandas 2.2.3, Pillow 11.1.0. Asserted at job start.
 - **Checkpoint:** step 1300, per the paper's Table 4 budget.
@@ -60,20 +96,24 @@ The retrained image **fails on its own white-box surrogate but transfers fine**:
 
 | target | retrained (step 1300) | reported |
 |---|---|---|
-| Qwen2-VL-7B — *the surrogate it was optimised against* | SafeBench 27.4% / AdvBench 7.7% | 81.59 / 72.69 |
-| LLaVA-1.6-Mistral-7B — *black-box transfer* | SafeBench 82.6% / AdvBench 90.6% | 88.25 / 92.88 |
+| Qwen2-VL-7B — *the surrogate it was optimised against* | SafeBench 28.9% / AdvBench 7.7% | 81.59 / 72.69 |
+| LLaVA-1.6-Mistral-7B — *black-box transfer* | SafeBench 83.2% / AdvBench 90.6% | 88.25 / 92.88 |
 
 An image that breaks the transfer target but not the model it was optimised against means the optimisation signal for Qwen was corrupted — the patch pixels don't land where Qwen's vision encoder reads them. This also rules out query-overfitting and text-path bugs, which would degrade LLaVA too.
 
 ### Results — all four runs, Qwen2-VL surrogate, step 1300
 
+All SafeBench numbers on the canonical 315-query set; AdvBench on all 520 rows.
+
 | run | corpus | transformers | projection | SafeBench | AdvBench |
 |---|---|---|---|---|---|
-| authors' `ultrabreak.png` | — | 4.51.3 | — | **77.71%** | **67.69%** |
-| original retrain | 35 | 5.10.0.dev0 | off | 27.4% | 7.69% |
-| **job 622** | 50 | 4.51.3 | off | 29.84% | 1.73% |
-| **job 625** | 50 | 4.51.3 | **on** | **48.25%** | **22.31%** |
+| authors' `ultrabreak.png` | — | 4.51.3 | — | **81.59%** (v1) / 78.73% (v2) | **67.69%** (v3) |
+| original retrain | 35 | 5.10.0.dev0 | off | 28.89% (v2) | 7.69% (v3) |
+| **job 622** | 50 | 4.51.3 | off | 29.84% (v3) | 1.73% (v3) |
+| **job 625** | 50 | 4.51.3 | **on** | **48.25%** (v3) | **22.31%** (v3) |
 | paper | | | | 81.59% | 72.69% |
+
+Judge passes are not interchangeable across rows: the authors' artifact is shown under both v1 and v2, the retrains under v3. Job 647 adds v1 scores for the retrains so the whole column can be read under a single protocol.
 
 ### Ruled out: transformers version and training-corpus size
 
@@ -131,14 +171,14 @@ Note that job 625 beat job 622 by ~20 points *despite* carrying a 6.6× contrast
 
 1. **Step 5 — projection with the raw-latent clamp removed** (`optimise_proj.py:153`), so `x_proj` spans the full dynamic range. Highest expected value. Pair with a longer budget: job 625 was still descending at step 1400, and the original run went 27.4% @1300 → 62.9% @5000, so the paper's 1300-step evaluation point is likely under-trained here. Cost reference: 1400 steps ≈ 5.3 h on one RTX 6000 Ada.
 2. **Evaluate the projected image on LLaVA.** Neither full-50 run has a transfer evaluation, so we don't know whether the projection also closes the surrogate/transfer anomaly or merely raises the surrogate number.
-3. **Re-score the authors' baseline at v3** (judge-only, no regeneration) to remove the caveat below.
+3. **Score every row under one judge pass** (judge-only, no regeneration). Job 647 covers the retrains at v1; the authors' artifact still needs v3.
 4. **Regenerate GLM-4.1V with a larger token budget.** At `max_new_tokens=512` only ~45% of generations complete; 31% hit the cap mid-`<think>` and never emit an answer. GLM's ASR cannot be fixed by re-scoring.
 
 ---
 
 ## Caveats
 
-- **Judge-pass mismatch in the headline comparison.** The two new runs are scored at v3; the authors' SafeBench baseline (77.71%) is a v2 number. The v2→v3 transition moved every previously-measured number *down* 0.2–3.1 points, so the true gap is if anything slightly **smaller** than stated. AdvBench comparisons are v3-on-v3 and unaffected.
+- **Judge pass is part of the result, not a detail.** The same generations give 81.59% (v1, authors' scorer) or 78.73% (v2) for the released artifact. Every cross-row comparison must state its pass; the four-run table above is not internally single-pass until job 647 lands. Our v2/v3 fixes are defensible and all move numbers *down*, but they move away from the paper.
 - **n = 1 per configuration, no seed control.** `optimise.py` sets no random seed anywhere, so run-to-run variance is unquantified. The +18.4 / +20.6 projection deltas rest on a single run pair. The loss-trajectory evidence is less noise-sensitive than the ASR deltas but is also single-run.
 - **The projection ablation is not a clean test of the paper's intent** — it tests our double-constrained reading of Section 3.2, which the pixel statistics show is not what produced the authors' image.
 - **`ultrabreak.png`'s own training configuration is unknown.** We cannot tell whether the authors trained with the projection, on 35 or 50 queries, or for how many steps. Items 1(a)/1(b) in the author email address this directly.
