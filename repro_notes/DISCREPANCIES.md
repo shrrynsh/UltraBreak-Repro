@@ -2,7 +2,7 @@
 
 **Scope.** Every point where the released implementation (authors' commit `c4c276d`) diverges from *Toward Universal and Transferable Jailbreak Attacks on Vision-Language Models* (ICLR 2026, arXiv 2602.01025). Companion to [`FINDINGS.md`](FINDINGS.md), which covers the reproduction gap itself; this file is the audit trail behind it.
 
-**Status as of 2026-08-10.**
+**Status as of 2026-08-11.**
 
 **Sourcing caveat.** Paper quotes below were extracted from the arXiv HTML (`arxiv.org/html/2602.01025v1`). Spot-check them against the PDF before quoting any of them to the authors.
 
@@ -24,6 +24,7 @@
 | D1 | Section 3.2 projection is never applied — `project_patch()` is dead code | **Material** | Ask authors (email Q1) |
 | D2 | Training corpus is 35 queries; paper's arithmetic implies 50 | **Material** | Ask authors (email Q4); fixed in our fork |
 | D3 | TV loss: Eq. 9 is isotropic+summed, code is anisotropic+averaged | Documentation | Note to authors; **do not change code** |
+| D10 | λ_TV = 0.5 over-smooths by 3.7× once the projection is active; and `x` is ambiguous | **Material** | Ask authors (email Q2); test `--tv_weight 0.134` |
 | D4 | γ, β typed as scalars in ℝ but assigned per-channel 3-vectors | Minor | Note to authors |
 | D5 | Patch location bound is dynamic, not Table 4's fixed `l_max = 112` | Minor | No change |
 | D6 | Paper says AdvBench = 500; its own numbers are all `n/520` | Documentation | Erratum note; our 520-row eval is correct |
@@ -64,6 +65,8 @@ Our own changes to `optimisation/` are CLI plumbing and ablation flags whose def
 **Confidence.** The dead-code fact is certain (verified against commit `c4c276d`, as above). Whether `ultrabreak.png` itself was trained with the projection is **unknown** — that is email Q1.
 
 **Note (2026-08-10).** The released artifact now reproduces the paper's SafeBench number *exactly* (257/315 = 81.59%) once evaluated on the canonical 315 set with the authors' own judge. So D1 is a training-side discrepancy only: it does not affect whether the released image scores as reported, just whether the released code can produce such an image.
+
+**Note (2026-08-11) — the +18.4 / +20.6 figure above is n=1 and should not be quoted alone.** Neither run was seeded (D7), and three further projection runs have since landed between 5.96% and 22.31% on AdvBench with no seed control, so the deltas are unattributed. More importantly, **D10 shows the projection as currently wired cannot produce an artifact resembling `ultrabreak.png` at any setting of O1/O2** — it over-smooths by 3.7×. D1 remains the right question to ask the authors; D10 is what has to be resolved before any projection run can answer it.
 
 ---
 
@@ -134,6 +137,92 @@ Eq. 9 with λ_TV = 0.5 would swamp the semantic objective ~1000×, driving the p
 **Action. Do not change the code.** It is what the authors ran and what λ_TV = 0.5 is calibrated to. Worth an erratum-style line to the authors.
 
 **Untested speculation, excluded from the write-up:** anisotropic L1 TV biases toward axis-aligned structure, which is suggestive given the paper's claim that transferability comes from "structured, text-like adversarial patterns". No ablation was run; do not assert this.
+
+---
+
+## D10 — λ_TV = 0.5 over-smooths by 3.7× once the projection is active · **Material**
+
+**The paper does specify where TV applies, and we follow it.** Eq. 10, verbatim from `arxiv.org/html/2602.01025v1`:
+
+```
+arg min_x  Σ_{(q,y)∈Q'}  E_{l,r,s}[ L^att_sem(M', A(x_blank, x_proj, l, r, s), q^TPG, y) ]  +  λ_TV L_TV(x)
+```
+
+Both symbols appear in the same expression: `x_proj` inside the patch-application operator, bare `x` inside the TV term. Eq. 9 likewise defines `L_TV(x)` over `x_{i,j}`. So TV on the raw variable is deliberate, not a typo, and `optimise_proj.py` is faithful on this point.
+
+**The authors' code shows what λ_TV = 0.5 was calibrated against.** In `c4c276d:optimisation/optimise.py`, one tensor is everything at once:
+
+```python
+l2_loss   = torch.mean((adv_patch - 0.5) ** 2)   # :125  neutral point 0.5 = mid-grey in PIXEL space
+tv_loss   = total_variation(adv_patch)           # :126  TV target
+model_loss= model.compute_loss(row, adv_patch, …)# :128  what the model sees
+adv_patch.data = torch.clamp(adv_patch.data,0,1) # :141  kept a valid image
+save_tensor_as_image(adv_patch, save_path)       # :150  the deployable artifact
+```
+
+No projection anywhere (D1). So in the only code where λ_TV = 0.5 was ever exercised, **`x` is the image, and TV is applied to the image.** The L2 term's `0.5` neutral point independently corroborates that `adv_patch` is intended as pixel-space, not as a normalised latent.
+
+**Why introducing the projection breaks that calibration, on any reading.** The model sees `x_proj = γ·x + β`, so by the chain rule `∂L_att/∂x = γ · ∂L_att/∂x_proj`, while `∂L_TV/∂x` is untouched. The projection therefore scales the *attack* gradient by γ ≈ 0.27 and leaves the *regulariser* gradient alone — the TV term dominates by `1/γ ≈ 3.7×` relative to the unprojected code. Equivalently, on the artifact: `TV(x) = TV(image)/γ` exactly (β cancels in first differences), measured on `ultrabreak.png` as 0.6949 / 0.1863 = **3.730** against `1/mean(CLIP_STD)` = 3.723.
+
+This argument does not depend on what `x` denotes — see the two readings below. Either way, **λ_TV = 0.5 with the projection active is effectively 1.86 without it.**
+
+**Measured consequence.** Every projection run collapses to an order of magnitude less structure than the artifact it is trying to reproduce:
+
+| patch | image std (8-bit) | TV(image) |
+|---|---|---|
+| authors' `ultrabreak.png` | 41.7 | 0.1863 |
+| job 622 — **no** projection | 38.4 | 0.1616 |
+| job 625 — projection, latent clamped | 9.8 | 0.0180 |
+| job 639 — projection, unclamped, unit init | 10.9 | 0.0236 |
+| job 640 — projection, unclamped, image init | 9.7 | 0.0254 |
+
+**Job 640 is the controlled proof that this is the regulariser and not O1/O2.** It starts at the correct full-range initialisation and is ground down monotonically — std 73.3 → 47.3 → 30.5 → 16.8 → 14.1 → 12.4 → 10.6 → 9.9 → 9.7 at steps 0/100/200/400/600/800/1000/1200/1300 — landing indistinguishable from the clamped run it was meant to fix. Saturation is 0.00% at every checkpoint after step 0, so the paper's own clip never binds: nothing but TV is shaping the outcome.
+
+**This also bears on email Q1** (*was the released image trained with the projection?*). If it had been, with λ_TV = 0.5 on the latent, it would carry TV(image) ≈ 0.02. It carries **0.186**, which sits beside the unprojected run's 0.162. Either `ultrabreak.png` was trained without the projection, or λ_TV was rescaled when the projection was on. Both are answerable only by the authors.
+
+**Not a coding error on either side.** The code follows Eq. 10 literally, and λ_TV = 0.5 is calibrated correctly for the *unprojected* path the release actually executes (D1). The inconsistency only materialises when Section 3.2 is wired in, which the release never does — so it is invisible until you try to reproduce the training.
+
+### Two readings of what `x` is — unresolved, and it changes O1
+
+Section 3.2 verbatim: *"The image input is projected onto a constrained subspace **to reduce reliance on extreme pixel values during training**. We apply an affine projection that shifts and scales pixel values: x_proj = clip(γ·x + β, 0, 1)."*
+
+| | **Reading A — `x` is a latent** | **Reading B — `x` is the image** |
+|---|---|---|
+| what the projection does | de-normalises: `x ∈ [−1.79, 2.15] → [0, 1]` | compresses: `x ∈ [0,1] → [0.41, 0.75]` |
+| fits *"reduce reliance on extreme pixel values"* | **no** — it expands range | **yes** — literally removes extremes |
+| appendix's *"clipped pixel values back to [0,1]"* | **meaningful** — the clip binds | **vacuous** — γ·[0,1]+β ⊂ [0,1] always |
+| implies `ultrabreak.png` (full-range, std 41.7) | consistent | **inconsistent** — artifact would be washed out |
+| our implementation | jobs 639 / 640 | **job 625** |
+
+Both readings are supported by different sentences and contradicted by others. Note the consequence: **under Reading B, job 625's configuration is the faithful one and O1 is not a defect at all** — clamping `x` to [0,1] is exactly what keeps it a valid image input. O1's argument (the clip must be reachable, so the latent must be free) is only decisive under Reading A.
+
+What resolves it: `ultrabreak.png` is full-range, which fits neither projected reading and fits D1 — the projection was simply never run. So the artifact cannot arbitrate. **This is a question for the authors, and it is a better-formed one than O1/O2 as currently written.**
+
+### What D10 does **not** explain — do not overstate this entry
+
+The over-smoothing is measured and the arithmetic is exact. But **contrast does not predict ASR across our runs**, so D10 is not established as the cause of the reproduction gap:
+
+| run | patch std | AdvBench ASR |
+|---|---|---|
+| authors' | 41.7 | 67.69% |
+| job 622 — no projection | 38.4 | **1.73%** |
+| job 625 — projection, clamped | 9.8 | **22.31%** |
+| job 639 | 10.9 | 5.96% |
+| job 640 | 9.7 | 2.31% |
+
+Job 622 has near-authors contrast and the worst score of any run; job 625 is among the smoothest and the best. Whatever the artifact's structure contributes, restoring dynamic range alone does not recover ASR — that is exactly what `--tv_weight 0.134` tests.
+
+Related negative result, worth reporting on its own: **TPG prefix compliance is fully reproduced and is not where the gap lives.** Measured on extracted answers (not the echoed prompt), job 639 emits `[Jailbroken Mode]` on **89.4%** of AdvBench queries against the authors' image's **84.6%**, while scoring 5.96% versus 67.69%. Our patches control the first token as well as or better than the released artifact and still fail to elicit compliance.
+
+**Test, no code change needed** (`--tv_weight` landed with P2):
+
+```
+--tv_weight 0.134     # = 0.5 * mean(CLIP_STD): restores the image-space balance
+```
+
+Falsifiable prediction: contrast recovers toward std ≈ 38. Run this before spending seeds on any projection configuration.
+
+**Confidence: measurement, plus inference on intent.** `TV(x) = TV(image)/γ` is arithmetic and the contrast collapse is measured across three runs. Whether the paper intends `L_TV(x_proj)` instead, or a different λ_TV under projection, is the open question.
 
 ---
 
@@ -247,6 +336,12 @@ Measured consequence:
 
 **Confidence: strong inference, not a quote.** The paper never says "do not clamp the latent". The argument is the dead-clip one above.
 
+**Downgraded 2026-08-11 — this may not be a defect at all.** The dead-clip argument assumes `x` is a normalised latent (D10's Reading A). Under Reading B, where `x` is the image and the projection *compresses* it — which is what Section 3.2's stated purpose, *"to reduce reliance on extreme pixel values"*, actually describes — the pre-clamp is **required**, and job 625 is the faithful implementation rather than the broken one. Do not present O1 as a defect in the write-up until D10's ambiguity is resolved with the authors.
+
+**Status 2026-08-11: fixed and shipped, but it did not do what it was meant to.** The clamp is now behind `--clamp_latent` (off by default); job 639 ran unclamped, verified by its own log (`[proj] clamp_latent=False`) and `run_config.json`. The latent does escape the box — final range [−0.60, +1.38] against the clamped run's [−0.01, +1.00]. But the clamp turns out to be nearly inert: only **0.10%** of the clamped run's coordinates ever sit within 0.02 of a wall, and the two final latents have near-identical distributions (mean +0.490 vs +0.494, std 0.099 vs 0.121). Contrast barely moved (std 9.8 → 10.9) against the target of 41.7. **O1 was real but second-order; see D10 for the first-order cause.**
+
+Do not read job 625 vs 639 as a clamp ablation. Neither run was seeded, so patch init, the 1300-step transform schedule and the per-step embedding noise all differ too (D7); the clamp is the smallest of the four. The AdvBench swing between them (22.31% → 5.96%) is unattributed, and job 622 — clamped — scores *lower* still at 1.73%, so "clamped ⇒ better AdvBench" does not hold across our own runs.
+
 ---
 
 ## O2 — Our latent init is no longer a random image · **Ours**
@@ -265,6 +360,12 @@ The run would start inside the very band O1 frees it from, with 3.5× too little
 **Fix:** `adv_patch = (torch.rand(3, patch_size, patch_size, device=device) - mean) / std` — the projection run backwards, restoring the released code's original starting distribution.
 
 **Confidence: interpretation.** The paper says "random initialisation" without naming the space. This is the weakest-supported of our two changes and belongs in the email as a sub-question to Q2.
+
+**Status 2026-08-11: fixed and shipped, and it demonstrably is not the cause.** `--init_space image` landed; job 640 ran it, starting exactly as the table above predicts (`[proj] init latent range [-1.792, +2.146] -> image [0.000, 1.000] std=0.2888`). The run then collapsed straight back to std 9.7 — see D10 for the trajectory. Starting in the right place does not help when the objective drives it out again, so **O2 is settled as immaterial on its own.**
+
+**Worse: job 640 scored lowest of the four retrains** — SafeBench 42.54%, AdvBench 2.31%, and TPG prefix compliance collapsed to 35.4% (against 89.4% for job 639 and 84.6% for the authors' image), so most of its refusals are the bare `"Sorry, but I can't assist with that."` rather than the prefixed form. Across the three projection runs, AdvBench falls monotonically with how far the latent leaves the unit box — 625 `[−0.01,+0.99]` 22.31%, 639 `[−0.60,+1.38]` 5.96%, 640 `[−1.03,+1.37]` 2.31%.
+
+**That is evidence for D10's Reading B, i.e. against O1 and O2 both.** The configuration built to be faithful under Reading A is the worst one we have. Keep the flags — they are what makes the comparison possible — but the write-up should present O1/O2 as *tested and not supported*, not as fixes. Caveat: n=1 per configuration and no seed control (D7), so this is suggestive, not settled.
 
 ---
 
@@ -286,6 +387,6 @@ Full Table 4 audit; every row checked against the code.
 | Iterations | 1300 | `CKPT_STEP=1300` | ✓ |
 | Image size | 224×224 | `initialise_patch(..., 224, ...)` | ✓ |
 
-Also faithful: TV is applied to the raw variable `x`, matching Eq. 10's `λ_TV·L_TV(x)`; the projected patch is what gets saved as the deployable image (`optimise_proj.py:161`, `:196`).
+Also faithful: TV is applied to the raw variable `x`, matching Eq. 10's `λ_TV·L_TV(x)`; the projected patch is what gets saved as the deployable image (`optimise_proj.py:161`, `:196`). λ_TV = 0.5 is faithful *as written* — but see **D10**: read together with Section 3.2 it is 3.7× too strong, and that is now the leading candidate cause of the training gap.
 
-**Watch item, not a discrepancy.** Once O1 lands and the latent spans ~3.7× wider, `L_TV(x)` grows correspondingly — the TV term moves from ~0.33 to ~1.24 against a text loss of ~12. That *is* what the paper specifies (Eq. 10 applies TV to raw `x`, Table 4 fixes λ_TV = 0.5), so λ_TV stays at 0.5. But check `losses.csv`: if TV starts dominating, suspect this first.
+**~~Watch item~~ — confirmed 2026-08-11, promoted to D10.** This section previously logged the prediction that "once O1 lands and the latent spans ~3.7× wider, `L_TV(x)` grows correspondingly … if TV starts dominating, suspect this first." It did, and it does. The prediction was right about the mechanism and wrong about the conclusion: λ_TV should **not** stay at 0.5, because holding it there is what collapses the patch to a featureless square. See D10.

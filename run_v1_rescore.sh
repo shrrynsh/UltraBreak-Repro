@@ -27,8 +27,9 @@
 # The scorer is materialised straight from git rather than kept as a second copy
 # in the tree, so it cannot silently drift from what the authors released.
 #
-# Writes *_harmbench.csv beside each input -- the v1 suffix.  Inputs are chosen
-# to have no existing v1 file; check before adding to the list.
+# Writes *_harmbench.csv beside each input -- the v1 suffix.  Idempotent: inputs
+# that already have a v1 file are skipped, never rewritten, so new results can be
+# appended to INPUTS and the job re-run without touching what is already scored.
 
 set -euo pipefail
 
@@ -46,6 +47,12 @@ INPUTS=(
   "results/safebench_tiny_full50_repro_advbench_eval/Qwen/Qwen2-VL-7B-Instruct.csv"
   "results/safebench_tiny_full50_proj_repro_safebench_eval/Qwen/Qwen2-VL-7B-Instruct.csv"
   "results/safebench_tiny_full50_proj_repro_advbench_eval/Qwen/Qwen2-VL-7B-Instruct.csv"
+  # Step 5a/5b: unclamped latent, unit vs image init. Added after job 647 was
+  # queued, so 647 will not cover these -- they need a resubmission.
+  "results/full50_proj_unclamped_unitinit_safebench_eval/Qwen/Qwen2-VL-7B-Instruct.csv"
+  "results/full50_proj_unclamped_unitinit_advbench_eval/Qwen/Qwen2-VL-7B-Instruct.csv"
+  "results/full50_proj_unclamped_imginit_safebench_eval/Qwen/Qwen2-VL-7B-Instruct.csv"
+  "results/full50_proj_unclamped_imginit_advbench_eval/Qwen/Qwen2-VL-7B-Instruct.csv"
 )
 
 cd "$REPO_ROOT"
@@ -62,20 +69,30 @@ echo "${LOG_PREFIX} sha256 of authors' evaluate.py: $(sha256sum "${STAGE_ROOT}/e
 cp "${STAGE_ROOT}/evaluate_v1.py" evaluation/_evaluate_v1_tmp.py
 trap 'rm -f "${REPO_ROOT}/evaluation/_evaluate_v1_tmp.py"' EXIT
 
-# Refuse to clobber an existing v1 score rather than silently rewriting history.
+# Never clobber an existing v1 score -- already-scored inputs are SKIPPED, not
+# rewritten, so this job is idempotent and can be re-run as new results land.
+# A missing input is still a hard error: it means the list is wrong.
+TODO=()
 for input_csv in "${INPUTS[@]}"; do
-  existing="${input_csv%.csv}_harmbench.csv"
-  if [[ -f "$existing" ]]; then
-    echo "${LOG_PREFIX} ERROR: ${existing} already exists; remove it or drop the input." >&2
-    exit 1
-  fi
   if [[ ! -f "$input_csv" ]]; then
     echo "${LOG_PREFIX} ERROR: missing input ${input_csv}" >&2
     exit 1
   fi
+  existing="${input_csv%.csv}_harmbench.csv"
+  if [[ -f "$existing" ]]; then
+    echo "${LOG_PREFIX} SKIP (already scored): ${existing}"
+  else
+    TODO+=("$input_csv")
+  fi
 done
 
-for input_csv in "${INPUTS[@]}"; do
+if [[ ${#TODO[@]} -eq 0 ]]; then
+  echo "${LOG_PREFIX} Nothing to score -- every input already has a v1 file."
+  exit 0
+fi
+echo "${LOG_PREFIX} ${#TODO[@]} of ${#INPUTS[@]} inputs need scoring."
+
+for input_csv in "${TODO[@]}"; do
   echo "${LOG_PREFIX} ===================================================="
   echo "${LOG_PREFIX} Scoring ${input_csv}"
   ( cd evaluation && python _evaluate_v1_tmp.py --attack_result "../${input_csv}" ) \
