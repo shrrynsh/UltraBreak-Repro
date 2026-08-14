@@ -78,11 +78,13 @@ class Llava16Adapter(BaseModelAdapter):
         B, P, C, H, W = image_tensor_batch.shape
         patched_imgs = []
 
-        # optionally normalise patch first
-        # mean_tensor = torch.tensor(OPENAI_CLIP_MEAN).view(-1, 1, 1).to('cuda')
-        # std_tensor = torch.tensor(OPENAI_CLIP_STD).view(-1, 1, 1).to('cuda')
-        # normalised_patch = (patch - mean_tensor) / std_tensor 
-        normalised_patch = patch
+        # Normalise the patch into CLIP space (DISCREPANCIES D11). LLaVA-1.6's
+        # processor normalises with the same CLIP stats (do_normalize=True), so the
+        # raw-patch injection had the identical units bug documented for Qwen. Fixed
+        # by analogy here; validated directly only for Qwen (job trains on Qwen).
+        mean_tensor = torch.tensor(OPENAI_CLIP_MEAN).view(-1, 1, 1).to(self.device)
+        std_tensor = torch.tensor(OPENAI_CLIP_STD).view(-1, 1, 1).to(self.device)
+        normalised_patch = (patch - mean_tensor) / std_tensor
         added = 0
         
         for img in image_tensor_batch[0]:

@@ -246,14 +246,21 @@ class Qwen2Adapter(BaseModelAdapter):
         embedding_layer = self.model.get_input_embeddings() 
         embedding_matrix = embedding_layer.weight
        
-        # normalise patch  (for patch only mode?)
-        if self.patch_only:
-            mean_tensor = torch.tensor(OPENAI_CLIP_MEAN).view(-1, 1, 1).to(self.device)
-            std_tensor = torch.tensor(OPENAI_CLIP_STD).view(-1, 1, 1).to(self.device)
-            normalised_patch = (patch - mean_tensor) / std_tensor 
-            patched_imgs = self.apply_patch(pixel_values.unsqueeze(0), image_grid_thw[0], normalised_patch)
-        else:
-            patched_imgs = self.apply_patch(pixel_values.unsqueeze(0), image_grid_thw[0], patch)
+        # Normalise the patch into CLIP space before compositing (DISCREPANCIES D11).
+        # `pixel_values` has already been normalised by the processor (image_mean=
+        # CLIP_MEAN, image_std=CLIP_STD, do_normalize=True), so injecting a raw [0,1]
+        # patch reads it on the wrong scale: the model perceives gamma*v + beta, a
+        # 27%-wide grey band, while the PNG we save spans [0,1] and is re-normalised
+        # by the real processor at eval -- so training and deployment saw different
+        # images. Normalising here makes them the same. This used to run ONLY on the
+        # patch_only branch; every training run takes the other one, which is the bug.
+        # (The -1.0 canvas sentinel in apply_patch and the abs-sum<1e-5 sentinel in
+        #  apply_random_patch now correspond to different exact colours, but each is
+        #  still a measure-zero set, exactly as when the patch was raw.)
+        mean_tensor = torch.tensor(OPENAI_CLIP_MEAN).view(-1, 1, 1).to(self.device)
+        std_tensor = torch.tensor(OPENAI_CLIP_STD).view(-1, 1, 1).to(self.device)
+        normalised_patch = (patch - mean_tensor) / std_tensor
+        patched_imgs = self.apply_patch(pixel_values.unsqueeze(0), image_grid_thw[0], normalised_patch)
              
         
         outputs = self.model(
