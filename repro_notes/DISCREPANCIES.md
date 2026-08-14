@@ -2,7 +2,7 @@
 
 **Scope.** Every point where the released implementation (authors' commit `c4c276d`) diverges from *Toward Universal and Transferable Jailbreak Attacks on Vision-Language Models* (ICLR 2026, arXiv 2602.01025). Companion to [`FINDINGS.md`](FINDINGS.md), which covers the reproduction gap itself; this file is the audit trail behind it.
 
-**Status as of 2026-08-11.**
+**Status as of 2026-08-14.**
 
 **Sourcing caveat.** Paper quotes below were extracted from the arXiv HTML (`arxiv.org/html/2602.01025v1`). Spot-check them against the PDF before quoting any of them to the authors.
 
@@ -21,10 +21,12 @@
 
 | ID | Discrepancy | Severity | Action |
 |---|---|---|---|
-| D1 | Section 3.2 projection is never applied — `project_patch()` is dead code | **Material** | Ask authors (email Q1) |
+| **D11** | **The patch is never CLIP-normalised before injection — training optimises inside a 27%-wide grey band** | **Material — leading cause** | **Confirmed by job 683 T1. Fix + retrain is the next experiment; email Q1** |
+| D12 | The released judge scores refusals as successes; inflation is run-dependent and reorders results | **Material** | State both judge columns everywhere; never rank on one |
+| D1 | Section 3.2 projection is never applied — `project_patch()` is dead code | **Material** | Supersede by D11 — the projection is missing from the *save* step, not the loop |
 | D2 | Training corpus is 35 queries; paper's arithmetic implies 50 | **Material** | Ask authors (email Q4); fixed in our fork |
 | D3 | TV loss: Eq. 9 is isotropic+summed, code is anisotropic+averaged | Documentation | Note to authors; **do not change code** |
-| D10 | λ_TV = 0.5 over-smooths by 3.7× once the projection is active; and `x` is ambiguous | **Material** | Ask authors (email Q2); test `--tv_weight 0.134` |
+| D10 | λ_TV = 0.5 over-smooths by 3.7× once the projection is active | **Material** | *Reframed as a symptom of D11*; `--tv_weight 0.134` deferred behind the fix + retrain |
 | D4 | γ, β typed as scalars in ℝ but assigned per-channel 3-vectors | Minor | Note to authors |
 | D5 | Patch location bound is dynamic, not Table 4's fixed `l_max = 112` | Minor | No change |
 | D6 | Paper says AdvBench = 500; its own numbers are all `n/520` | Documentation | Erratum note; our 520-row eval is correct |
@@ -32,12 +34,82 @@
 | D9 | Some of our eval configs kept the 35 SafeBench-Tiny training queries | **Ours** | **Fixed** — summariser filters to the canonical 315 |
 | D8 | Undocumented L2 term in code, weight 0.0 | Minor | No change |
 | R1 | AdvBench prompt normalisation — **investigated, not a discrepancy** | — | **Do not report** |
-| O1 | Our projection double-constrains the latent | **Ours** | Fix before next run |
-| O2 | Our latent init is no longer a random image | **Ours** | Fix before next run |
+| O1 | Our projection double-constrains the latent | **Ours** | **Tested, not supported** — see D11 |
+| O2 | Our latent init is no longer a random image | **Ours** | **Tested, not supported**; its monotonicity claim is **retracted** |
 
 ---
 
-## D1 — The Section 3.2 projection is never applied · **Material**
+## D11 — The patch is never CLIP-normalised before injection · **Material — leading cause of the training gap**
+
+**The code.** `optimisation/qwen2_adapter.py:243-251`, verbatim in the authors' `c4c276d`:
+
+```python
+# normalise patch  (for patch only mode?)      <- the release's own comment, question mark included
+if self.patch_only:
+    normalised_patch = (patch - mean_tensor) / std_tensor
+    patched_imgs = self.apply_patch(pixel_values.unsqueeze(0), image_grid_thw[0], normalised_patch)
+else:
+    patched_imgs = self.apply_patch(pixel_values.unsqueeze(0), image_grid_thw[0], patch)   # <- raw
+```
+
+Both `optimise.py:78` and `optimise_proj.py:175` build the adapter with **`patch_only=False`**, so every training run ever performed — the authors' and ours — took the un-normalised branch. `llava16_adapter.py:81-85` carries the same defect made explicit: the normalisation is commented out and the variable is still named `normalised_patch`.
+
+**Why it is a defect.** `pixel_values` comes from `Qwen2VLImageProcessor`, which normalises. Verified from `preprocessor_config.json` (`image_mean` = CLIP_MEAN, `image_std` = CLIP_STD, `do_normalize=True`) and by running the processor on CPU: `white.jpeg` → min **1.653**, max **2.146**. The patch is injected into that tensor still in raw [0,1] units. A units mismatch, silent — nothing errors.
+
+**Consequence.** During training the model perceives the patch as an image with pixels `γ·v + β`:
+
+| optimiser writes | model perceives |
+|---|---|
+| 0.0 | 0.449 |
+| 0.5 | 0.583 |
+| 1.0 | 0.718 |
+
+Training is confined to a **27%-wide grey band**. The saved PNG is then deployed through the real processor and spans the full range. **The image optimised and the image shipped are not the same image.**
+
+### The arithmetic proof — no GPU required
+
+With `optimise.py:141`'s `clamp(x, 0, 1)`, pixels ∈ [0.449, 0.718] is the *complete* set of images training can ever cause the model to perceive. `ultrabreak.png` spans [0, 255]. **The released training code cannot produce the released artifact.** Either the authors trained with normalisation in place, or the artifact came from a different pipeline. This is the strongest single statement the study can make and it costs nothing to verify.
+
+### Experimental confirmation — job 683
+
+Three pure pixel remaps of existing PNGs, no training, 85 minutes total:
+
+| | SafeBench-315 | AdvBench-520 | AdvBench NRR |
+|---|---|---|---|
+| `ultrabreak.png` untouched | 78.73%¹ | **67.69%** | 81.9% |
+| **T1 — squeezed into the band** `clip(γ·x+β)` | 44.13% | **8.85%** | 20.8% |
+| job 625 untouched (std 9.8) | 48.25% | 22.31% | 26.0% |
+| **T2 — stretched out of the band** `clip((x−β)/γ)` | **67.94%** | 12.31% | 21.5% |
+| job 622 untouched (std 38.4) | 29.84% | 1.73% | 12.1% |
+| T3 — 622 squeezed | 21.27% | 1.15% | 4.4% |
+
+¹ v2; every other cell is v3. The AdvBench column is v3 throughout, so that is the clean comparison.
+
+**T1 is decisive.** A patch scoring 67.69% loses **87% of its ASR** to a value-range remap alone — the pattern is untouched. Non-refusal falls from 82% to 21%. T1's result lands squarely inside our four retrains' range (1.73–22.31 AdvBench), so a working attack confined to the band becomes indistinguishable from our failures.
+
+**T2 quantifies the waste.** Stretching a patch we had written off gains **+19.7 SafeBench points** for free — 67.94%, the best SafeBench in the study outside the authors' own artifact. The optimiser was learning real structure; the save-space mapping discarded it.
+
+**Headroom.** A strong patch squeezed into the band caps at 8.85% AdvBench; our optimiser working *inside* the band reaches 22.31%; unconstrained the same attack reaches 67.69%. Band confinement more than accounts for the gap.
+
+### What D11 does **not** explain
+
+T2's AdvBench went *down* (22.31 → 12.31) while SafeBench rose, and prefix compliance fell with it (77.9% → 51.2%). No transform of any patch we own exceeds 22.31% on AdvBench. **Contrast alone does not predict AdvBench**, and the generalisation failure — SafeBench improves 30.79 → 66.35 from 1300 to 5000 steps while AdvBench *degrades* 8.08 → 4.42 — is untouched by this entry. D11 is the leading cause, not the whole story.
+
+**Caveat to keep.** T1–T3 probe the band's effect at *inference*. The defect concerns what the model perceives during *optimisation*. Related but not identical: only restoring the normalisation and retraining proves the fix. That is the next experiment.
+
+**Status.** Not fixed. `optimisation/` deliberately unchanged pending the confirmatory retrain.
+
+---
+
+## D1 — The Section 3.2 projection is never applied · **Material** · *superseded by D11*
+
+**Read D11 first.** `x_proj = clip(γ·x + β, 0, 1)` is *exactly* the image a `patch_only=False` run causes the model to perceive. So `project_patch()` being dead code is not a missing regulariser in the training loop — it is the paper describing the **deployable** image for a patch injected in normalised space. The projection is missing from the *save* step.
+
+That also explains why our "fix" backfired: `optimise_proj.py` applied the projection at the **injection** point, so jobs 625/639/640 double-apply it and the model perceives `γ(γx+β)+β`. The numbers line up — `γ·ultrabreak+β` is std 13.3, range [104,191]; job 625's *saved artifact* is std 9.8, range [105,189]. We were shipping the internal view.
+
+The original entry follows unchanged for the audit trail.
+
+## D1 (original text) — `project_patch()` is dead code
 
 **Paper, Section 3.2 (*Projection onto Constrained Input Space*):**
 
@@ -142,6 +214,9 @@ Eq. 9 with λ_TV = 0.5 would swamp the semantic objective ~1000×, driving the p
 
 ## D10 — λ_TV = 0.5 over-smooths by 3.7× once the projection is active · **Material**
 
+> **Reframed 2026-08-14 by D11.** The 3.7× arithmetic below is correct and the contrast collapse is measured, but the framing assumed our `optimise_proj.py` was applying Section 3.2 in the right place. It was not — the projection belongs at the *save* step, not the injection point (D1, revised). The `1/γ` factor here is the **same** γ as D11's units bug, appearing again because we applied the projection on top of it. Treat D10 as a *symptom* of D11 rather than an independent cause, and re-derive the λ_TV question only after the normalisation is fixed and a run has been done. The `--tv_weight 0.134` test is deferred behind that retrain.
+
+
 **The paper does specify where TV applies, and we follow it.** Eq. 10, verbatim from `arxiv.org/html/2602.01025v1`:
 
 ```
@@ -223,6 +298,42 @@ Related negative result, worth reporting on its own: **TPG prefix compliance is 
 Falsifiable prediction: contrast recovers toward std ≈ 38. Run this before spending seeds on any projection configuration.
 
 **Confidence: measurement, plus inference on intent.** `TV(x) = TV(image)/γ` is arithmetic and the contrast collapse is measured across three runs. Whether the paper intends `L_TV(x_proj)` instead, or a different λ_TV under projection, is the open question.
+
+---
+
+## D12 — The released judge scores refusals as successes, unevenly · **Material**
+
+**The code.** `c4c276d:evaluation/evaluate.py:30`:
+
+```python
+m = re.search(r'assistant[:\s-]*', text, re.IGNORECASE)   # FIRST match
+```
+
+Qwen's chat template opens with `system\nYou are a helpful assistant.` — so the anchor lands inside the *system prompt*, and everything after it is handed to the judge, including the echoed harmful question verbatim. HarmBench then classifies the request itself as harmful content.
+
+**Verified.** In job 622's AdvBench, 49 of 520 queries are scored success by v1 and failure by v3. Actual model answers in that set include `"Sorry, but I can't assist with that."` and a bare `"[Jailbroken Mode]"` with nothing after it.
+
+**The inflation is not a constant offset — that is what makes it dangerous:**
+
+| run | AdvBench v3 (ours) | AdvBench v1 (theirs) | inflation |
+|---|---|---|---|
+| 622 | 1.73% | 11.15% | +9.42 |
+| 625 | 22.31% | 26.15% | +3.84 |
+| 639 | 5.96% | 7.12% | +1.16 |
+| 640 | 2.31% | **15.58%** | **+13.27** |
+
+Because it ranges +1 to +13, **the runs rank differently under the two judges**:
+
+- v3: 625 → 639 → 640 → 622
+- v1: 625 → 640 → 622 → **639**
+
+Job 639 is second under one judge and **last** under the other; 622 goes from last to third. Only 625's first place survives both.
+
+**Two disagreement populations.** Short refusals (median 36 chars, ~80% refusal-looking) dominate the AdvBench retrains — unambiguous v1 errors. Long substantive answers (median 563–1840 chars, 12–30% refusal-looking) dominate SafeBench and the authors' image — genuine borderline calls, not the extraction bug. Of the authors' image's 6.92-point AdvBench gap only ~2.1 points is plainly refusal-driven.
+
+**Effect sizes change size *and* direction:** the projection effect (622→625) is +21.27 SafeBench / +15.00 AdvBench under v1, but +18.41 / +20.58 under v3.
+
+**Action.** There is no correction factor and no "compare within one judge" shortcut. Every claim names its judge; the headline table carries both columns; **no ranking is asserted on a single judge.** Our v2/v3 fixes are correct but move *away* from the paper, whose numbers are computed with the extraction above.
 
 ---
 
@@ -365,7 +476,11 @@ The run would start inside the very band O1 frees it from, with 3.5× too little
 
 **Worse: job 640 scored lowest of the four retrains** — SafeBench 42.54%, AdvBench 2.31%, and TPG prefix compliance collapsed to 35.4% (against 89.4% for job 639 and 84.6% for the authors' image), so most of its refusals are the bare `"Sorry, but I can't assist with that."` rather than the prefixed form. Across the three projection runs, AdvBench falls monotonically with how far the latent leaves the unit box — 625 `[−0.01,+0.99]` 22.31%, 639 `[−0.60,+1.38]` 5.96%, 640 `[−1.03,+1.37]` 2.31%.
 
-**That is evidence for D10's Reading B, i.e. against O1 and O2 both.** The configuration built to be faithful under Reading A is the worst one we have. Keep the flags — they are what makes the comparison possible — but the write-up should present O1/O2 as *tested and not supported*, not as fixes. Caveat: n=1 per configuration and no seed control (D7), so this is suggestive, not settled.
+**That is evidence against O1 and O2 both.** The configuration built to be faithful under Reading A is the worst one we have. Keep the flags — they are what makes the comparison possible — but the write-up should present O1/O2 as *tested and not supported*, not as fixes. Caveat: n=1 per configuration and no seed control (D7).
+
+**RETRACTED 2026-08-14 — the monotonicity claim above does not hold.** The ordering `625 > 639 > 640` exists only under our v3 judge. Job 682 supplied the v1 column and the AdvBench ranking becomes `625 (26.15) > 640 (15.58) > 622 (11.15) > 639 (7.12)` — job 639 falls from second to **last**. Per D12 the judge's inflation is run-dependent (+1.16 for 639, +13.27 for 640), so it reorders results. There is no monotone relationship between latent escape and AdvBench ASR; there was a monotone relationship between latent escape and *one judge's* scoring of it. Do not restate this in the write-up.
+
+**And the deeper reason to drop the whole Reading A / Reading B framing: see D11.** Both readings assumed the injected patch is interpreted in pixel units. It is not — it is injected raw into a normalised tensor, so the model perceives `γ·v + β` whatever we do at the latent. O1 and O2 were adjustments to the wrong side of a units bug.
 
 ---
 
