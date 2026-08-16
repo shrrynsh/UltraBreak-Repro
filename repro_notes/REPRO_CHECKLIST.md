@@ -61,6 +61,25 @@ No MM-SafetyBench / baseline / proprietary / frontier results exist; StrongREJEC
 ⏳ **843** projfix · **844** doublesquash · **846** ext-benchmarks (StrongREJECT + HarmBench prompts,
 native+norm, our 5 patches, HarmBench-judged → not the same as A7's native SR scorer).
 
+## Scheduled — `jobs/pipeline.sh` (self-chaining, one job at a time)
+A self-chaining pipeline works these items in priority order within the cluster limits (MaxJobs=1,
+MaxSubmit=3, 24h/job). Seeded by `jobs/seed_pipeline.sh` when a slot frees.
+
+| step | checklist item | kind |
+|---|---|---|
+| 1 | **A1 + A2** — Kimi/SafeBench, Qwen-VL-Chat/AdvBench (authors' image) | score |
+| 2 | **A3** — authors' image × MM-SafetyBench-520 × 6 models | score |
+| 3 | **B11** — No-Attack (white.jpeg, no phrase) × 6 × {SafeBench, AdvBench} | score |
+| 4 | **B13** — CE-loss retrain (`--loss ce`) — also A10 timing | train |
+| 5 | **B14** — token-mode retrain (`--loss_mode token`) | train |
+| 6 | **B12** — no-constraints (`--no_transforms --tv_weight 0`) | train |
+| 7–8 | **B16** — TV sweep 0.2, 1.0 (0.5 ≈ 809 already have) | train |
+| 9 | **A4** — transfer 809 patch × 5 targets × {SafeBench, AdvBench} | score |
+
+Each training step is the 809 recipe (D11 fix, no projection, 3000 steps, seed 0) with one knob flipped,
+so every ablation is single-variable against the reproduced baseline. Flip the status cells above to ✅/🟡
+as steps land.
+
 ## Not tracked here (our contribution, in `FINDINGS.md`)
 Authors' image reproduces SafeBench **exactly** (257/315 = 81.59%) and AdvBench ≈ (74.62% v1 vs 72.69%);
 our retrain reproduces SafeBench (**809 = 83.49%**); training gap root-caused to [[DISCREPANCIES#D11]].

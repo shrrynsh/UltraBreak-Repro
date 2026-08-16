@@ -37,6 +37,12 @@ findings; scores are v3 judge on the clean 315 (SafeBench) / 520 (AdvBench) sets
 | `run_v1_rescore.sh` | 647, 682 | re-score generations with the authors' **v1** judge from commit `c4c276d` ([[D12]]); idempotent, skips already-scored inputs |
 | `run_harmbench_rejudge.sh` | — | re-judge existing generations with a chosen HarmBench pass |
 
+## Checklist pipeline (self-chaining)
+| script | what |
+|---|---|
+| `pipeline.sh <step>` | **self-chaining** driver working through `../repro_notes/REPRO_CHECKLIST.md` in priority order. Each step, after its preflight, `sbatch`s the next — so the whole checklist runs **one job at a time** within the cluster's MaxJobs=1 / MaxSubmit=3 / 24h limits. Steps: **1** A1/A2 (2 missing authors' cells) · **2** A3 (MM-SafetyBench×6) · **3** B11 (No-Attack×6) · **4** B13 (CE) · **5** B14 (token) · **6** B12 (no-constraints) · **7–8** B16 (TV 0.2, 1.0) · **9** A4 (transfer 809). Seed once: `sbatch jobs/pipeline.sh 1`; resume mid-way: `sbatch jobs/pipeline.sh N`. |
+| `seed_pipeline.sh` | one-shot watcher: waits for a free submit slot, then seeds `pipeline.sh 1`. Used because the queue was full at creation time. |
+
 ## Related (lives with its data, not here)
 `ext_benchmarks/run_ext_benchmarks.sh` (job 846) — scores patches on StrongREJECT + HarmBench; kept in
 `ext_benchmarks/` alongside its datasets and READMEs so that benchmark module is self-contained.
