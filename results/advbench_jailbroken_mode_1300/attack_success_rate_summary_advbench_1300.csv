@@ -1,0 +1,6 @@
+model,num_samples,num_success,attack_success_rate_pct
+Qwen/Qwen2-VL-7B-Instruct,520,42,8.08
+Qwen/Qwen2.5-VL-7B-Instruct,520,52,10.0
+THUDM/GLM-4.1V-9B-Thinking,520,113,21.73
+llava-hf/llava-v1.6-mistral-7b-hf,520,474,91.15
+moonshotai/Kimi-VL-A3B-Instruct,520,139,26.73

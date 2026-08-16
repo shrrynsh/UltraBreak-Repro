@@ -224,5 +224,4 @@ AGENTS.md
 # UltraBreak repo-specific generated artifacts
 /repro/
 /logs/
-/outputs/
-/results/
+
