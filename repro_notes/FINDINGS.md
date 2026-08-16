@@ -48,7 +48,7 @@ The v1 → v2 → v3 passes fixed real defects (v1 anchors on the first literal 
 
 But the paper's number is reproduced by **v1**, the authors' unmodified scorer, to the last decimal. So the report must carry both columns and say plainly which protocol each belongs to. This is a finding about the fragility of ASR as a metric, not an accusation: 81.59% and 78.73% are the same generations under two defensible scorers.
 
-`run_v1_rescore.sh` materialises the authors' judge straight from commit `c4c276d` so the v1 column stays reproducible rather than a historical artifact.
+`jobs/run_v1_rescore.sh` materialises the authors' judge straight from commit `c4c276d` so the v1 column stays reproducible rather than a historical artifact.
 
 ---
 

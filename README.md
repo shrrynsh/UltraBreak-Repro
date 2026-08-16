@@ -1,15 +1,64 @@
-# Toward Universal and Transferable Jailbreak Attacks on Vision-Language Models
+# UltraBreak-Repro — a reproducibility study
 
-**ICLR 2026**
+A claim-by-claim reproduction of **UltraBreak** — *Toward Universal and Transferable Jailbreak Attacks on Vision-Language Models* (ICLR 2026) — targeting a TMLR reproducibility report.
 
 [![arXiv](https://img.shields.io/badge/arXiv-2602.01025-b31b1b?logo=arxiv&logoColor=white)](https://arxiv.org/abs/2602.01025)
 [![Project Page](https://img.shields.io/badge/Project-Page-1f6feb?logo=githubpages&logoColor=white)](https://kaiyuancui.github.io/UltraBreak/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-
 > [!CAUTION]
-> This repository contains research on adversarial jailbreak attacks for **defensive and scientific purposes only**. The techniques described could potentially be misused to elicit harmful outputs from vision-language models. We release this work to transparently expose vulnerabilities and inform the development of safer, more robust VLMs. We ask that users engage with this work responsibly and in accordance with applicable laws and ethical guidelines.
+> Research on adversarial jailbreak attacks, for **defensive and scientific purposes only**. Outputs shown are third-party model responses under attack and do not represent the authors' or this study's views. Engage responsibly and lawfully.
 
+## What this study found
+
+Three findings, each documented in [`repro_notes/`](repro_notes) with the code, arithmetic, and jobs behind it:
+
+- **[D11 — the training gap is a units bug.](repro_notes/DISCREPANCIES.md)** The adversarial patch is never CLIP-normalised before it is composited into the (already-normalised) pixel tensor, so training optimises inside a 27%-wide grey band while the saved image is deployed at full range — train and eval see different images. Fixing it (normalise at injection) **reproduces SafeBench at 83.49%** — but only past the paper's stated 1300-step budget; it is *necessary and budget-gated*. Confirmed by a zero-training band test (job 683: squeezing the authors' own working patch into the band drops it 67.69 → 8.85 on AdvBench).
+- **[D12 — the released judge over-counts, unevenly.](repro_notes/DISCREPANCIES.md)** The authors' scorer anchors on the first literal `assistant`, which lands in Qwen's `You are a helpful assistant` system prompt, so it feeds the harmful *question* to the classifier and marks some refusals as successes. Inflation ranges +1 to +13 points depending on the run and **reorders results** — so every number names its judge, and no ranking rests on one.
+- **[D13 — "AdvBench" here is not the source benchmark.](repro_notes/DISCREPANCIES.md)** vs. the original (Zou et al. 2023): goals are reworded to "Steps to …" (a +58-point swing), the set is 520 not the stated 500, and scoring is HarmBench not refusal-matching. Faithful to UltraBreak's protocol, but a different benchmark from any GCG-protocol AdvBench figure.
+
+## Reproduced results (Qwen2-VL-7B surrogate; v1 = authors' judge, v3 = our corrected judge)
+
+| Patch | SafeBench-315 | AdvBench-520 | vs. paper |
+|---|---|---|---|
+| authors' `ultrabreak.png` (v1) | **81.59%** (257/315) | **74.62%** (388/520) | SafeBench **exact**; AdvBench +1.9 (paper 72.69) |
+| authors' `ultrabreak.png` (v3) | 78.73% | 67.69% | our corrected judge moves *away* from paper (D12) |
+| retrain, buggy baseline (job 622, v3) | 29.84% | 1.73% | training gap |
+| retrain + projection (job 625, v3) | 48.25% | 22.31% | — |
+| **retrain, D11 fix + 3000 steps (job 809, v3)** | **83.49%** | 39.04% | **SafeBench reproduced**; AdvBench still open |
+
+The released artifact reproduces the paper's headline SafeBench number to the last decimal. The *training* side did not, until the D11 fix; AdvBench generalisation remains the open piece.
+
+## Reproducibility checklist
+
+Full status of every paper table/figure in **[`repro_notes/REPRO_CHECKLIST.md`](repro_notes/REPRO_CHECKLIST.md)**. Summary (paper items: ✅ 1 · 🟡 5 · ⬜ 12 · 🚫 4):
+
+| Area | Status |
+|---|---|
+| Table 1 — authors' image transfer matrix (6 models × 3 datasets) | 🟡 10/18 cells (SafeBench 5/6, AdvBench 5/6, MM-SafetyBench 0/6) |
+| Table 1 — baselines (FigStep / VAJM / UMK), proprietary models | ⬜ baselines · 🚫 proprietary (API) |
+| Table 2 — StrongREJECT scores · Table 9 — frontier · Table 10 — overhead | ⬜ / 🚫 / ⬜ |
+| Table 3, 5, 6 — component / phrase / TV-weight ablations | ⬜ all (CLI flags ready) |
+| Figures 2–6 — size/surrogate transfer, patterns, landscapes | ⬜ / 🟡 |
+| Metric — HarmBench ASR (v1/v2/v3) | ✅ + D12 robustness study |
+
+## Repo map
+
+| path | what |
+|---|---|
+| [`repro_notes/`](repro_notes) | the study: `REPRO_CHECKLIST.md`, `DISCREPANCIES.md` (D1–D13), `FINDINGS.md`, `author_email_draft.md` |
+| [`jobs/`](jobs) | all SLURM job scripts + [index](jobs/README.md) mapping each to its result |
+| [`ext_benchmarks/`](ext_benchmarks) | StrongREJECT + HarmBench scoring (self-contained: data, download scripts, READMEs, job) |
+| `optimisation/` | training — model adapters + `optimise_proj.py` (D11 fix, ablation flags) |
+| `evaluation/` | `attack.py` (generation), `evaluate.py` (HarmBench judge, v1/v2/v3) |
+| `create_attack_configs.py` | config generation (root module; loaders for every benchmark) |
+| `datasets/ attack_configs/ outputs/ results/` | inputs, generated configs, trained patches, scored generations |
+
+---
+
+# The original paper
+
+*The sections below are the authors' original README, preserved unchanged for method and result context. The reproduction study above is this fork's contribution.*
 
 ## Motivation
 
