@@ -39,7 +39,9 @@
 
 ---
 
-## D11 — The patch is never CLIP-normalised before injection · **Material — leading cause of the training gap**
+## D11 — The patch is never CLIP-normalised before injection · **Material — necessary for reproduction, budget-gated · FIXED**
+
+> **Bottom line (2026-08-14, after jobs 683 / 773 / 808 / 809).** The defect is real, and fixing it is *necessary but not sufficient on its own* — it only pays off past the paper's stated 1300-step budget. With the fix and 3000 steps, a from-scratch retrain reaches **SafeBench 83.49%**, matching/beating the paper (81.59%) and the authors' released image (78.73%) — the first SafeBench reproduction in the study. AdvBench reaches 39.04%, still short of 72.69% (see the arc and the open generalisation gap below). Fix shipped in `qwen2_adapter.py` and `llava16_adapter.py`.
 
 **The code.** `optimisation/qwen2_adapter.py:243-251`, verbatim in the authors' `c4c276d`:
 
