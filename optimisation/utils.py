@@ -64,6 +64,11 @@ class AblationConfig:
     embed_noise: float = 1e-4       # Table 4 epsilon
     pos_alpha: float = 0.01         # positional-encoding weight
 
+    # Patch normalisation (DISCREPANCIES D11). True = fix (normalise the patch into
+    # CLIP space before injection, matching the processor). False = reproduce the
+    # released code's raw-injection bug (= job 625's regime) for controlled runs.
+    normalise_patch: bool = True
+
     # Input transformations (paper: "Effect of Transformation and Regularisation")
     transforms: bool = True
     scale_range: tuple = (0.8, 1.2)         # Table 4

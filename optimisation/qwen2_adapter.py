@@ -257,9 +257,11 @@ class Qwen2Adapter(BaseModelAdapter):
         # (The -1.0 canvas sentinel in apply_patch and the abs-sum<1e-5 sentinel in
         #  apply_random_patch now correspond to different exact colours, but each is
         #  still a measure-zero set, exactly as when the patch was raw.)
+        # Gated on cfg.normalise_patch: default True is the fix; False reproduces
+        # the raw-injection bug (job 625's regime) for controlled experiments.
         mean_tensor = torch.tensor(OPENAI_CLIP_MEAN).view(-1, 1, 1).to(self.device)
         std_tensor = torch.tensor(OPENAI_CLIP_STD).view(-1, 1, 1).to(self.device)
-        normalised_patch = (patch - mean_tensor) / std_tensor
+        normalised_patch = (patch - mean_tensor) / std_tensor if self.cfg.normalise_patch else patch
         patched_imgs = self.apply_patch(pixel_values.unsqueeze(0), image_grid_thw[0], normalised_patch)
              
         

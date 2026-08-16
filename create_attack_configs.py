@@ -52,6 +52,9 @@ DATASET_PATHS = {
     "safebench-tiny": "datasets/SafeBench-Tiny.csv",
     "advbench":       "datasets/adv_bench.csv",
     "mm-safetybench": "datasets/mm_safetybench.csv",
+    # External text-instruction benchmarks (ext_benchmarks/download_*.py).
+    "strongreject":   "ext_benchmarks/strongreject.csv",
+    "harmbench":      "ext_benchmarks/harmbench_standard.csv",
 }
 
 ATTACK_IMAGE  = "outputs/ultrabreak.png"   # universal jailbreak image for evaluation
@@ -143,6 +146,22 @@ def load_advbench(path: str) -> pd.DataFrame:
     # 'goal' is the harmful instruction; use it directly as the clean target
     df = df.rename(columns={"goal": "clean_target"})
     df["category_name"] = "AdvBench"
+    return df[["clean_target", "category_name"]].dropna()
+
+
+def load_strongreject(path: str) -> pd.DataFrame:
+    """StrongREJECT (Souly et al. 2024): 313 forbidden text prompts, 6 categories.
+    forbidden_prompt is the harmful instruction -> clean_target."""
+    df = pd.read_csv(path)
+    df = df.rename(columns={"forbidden_prompt": "clean_target", "category": "category_name"})
+    return df[["clean_target", "category_name"]].dropna()
+
+
+def load_harmbench(path: str) -> pd.DataFrame:
+    """HarmBench (Mazeika et al. 2024) standard behaviours: 200 self-contained
+    text instructions. Behavior -> clean_target, SemanticCategory -> category_name."""
+    df = pd.read_csv(path)
+    df = df.rename(columns={"Behavior": "clean_target", "SemanticCategory": "category_name"})
     return df[["clean_target", "category_name"]].dropna()
 
 
@@ -354,6 +373,10 @@ def main():
         )
     elif args.dataset == "mm-safetybench":
         df = load_mm_safetybench(dataset_path, categories)
+    elif args.dataset == "strongreject":
+        df = load_strongreject(dataset_path)
+    elif args.dataset == "harmbench":
+        df = load_harmbench(dataset_path)
     else:
         df = load_advbench(dataset_path)
 

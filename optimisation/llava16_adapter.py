@@ -84,7 +84,7 @@ class Llava16Adapter(BaseModelAdapter):
         # by analogy here; validated directly only for Qwen (job trains on Qwen).
         mean_tensor = torch.tensor(OPENAI_CLIP_MEAN).view(-1, 1, 1).to(self.device)
         std_tensor = torch.tensor(OPENAI_CLIP_STD).view(-1, 1, 1).to(self.device)
-        normalised_patch = (patch - mean_tensor) / std_tensor
+        normalised_patch = (patch - mean_tensor) / std_tensor if self.cfg.normalise_patch else patch
         added = 0
         
         for img in image_tensor_batch[0]:

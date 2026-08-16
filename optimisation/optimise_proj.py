@@ -163,6 +163,7 @@ def main(args=None):
         embed_noise=args.embed_noise,
         pos_alpha=args.pos_alpha,
         transforms=not args.no_transforms,
+        normalise_patch=not args.raw_patch_injection,
     )
 
     surrogate_names = [s.strip() for s in args.surrogates.split(",") if s.strip()]
@@ -365,6 +366,10 @@ if __name__ == "__main__":
     parser.add_argument("--pos_alpha", type=float, default=0.01)
 
     # Input transformations (paper: "Effect of Transformation and Regularisation")
+    parser.add_argument("--raw_patch_injection", action="store_true",
+                        help="Reproduce the DISCREPANCIES D11 bug: inject the raw [0,1] patch "
+                             "into the already-normalised pixel tensor (job 625's regime). "
+                             "Default off = the fix (patch normalised into CLIP space).")
     parser.add_argument("--no_transforms", action="store_true",
                         help="Composite the patch unscaled, unrotated and centred — the "
                              "paper's 'no constraints' ablation cell.")
