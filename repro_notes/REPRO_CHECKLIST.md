@@ -68,13 +68,17 @@ MaxSubmit=3, 24h/job). Seeded by `jobs/seed_pipeline.sh` when a slot frees.
 | step | checklist item | kind |
 |---|---|---|
 | 1 | **A1 + A2** — Kimi/SafeBench, Qwen-VL-Chat/AdvBench (authors' image) | score |
-| 2 | **A3** — authors' image × MM-SafetyBench-520 × 6 models | score |
-| 3 | **B11** — No-Attack (white.jpeg, no phrase) × 6 × {SafeBench, AdvBench} | score |
-| 4 | **B13** — CE-loss retrain (`--loss ce`) — also A10 timing | train |
-| 5 | **B14** — token-mode retrain (`--loss_mode token`) | train |
-| 6 | **B12** — no-constraints (`--no_transforms --tv_weight 0`) | train |
-| 7–8 | **B16** — TV sweep 0.2, 1.0 (0.5 ≈ 809 already have) | train |
-| 9 | **A4** — transfer 809 patch × 5 targets × {SafeBench, AdvBench} | score |
+| 2 | **TRANSFER control-find** — 809 checkpoint matched to 843's white-box (~42.5%) | score |
+| 3 | **TRANSFER SafeBench** — PROJ-OFF (809) / PROJ-ON (843) / CONTROL × 5 black-box targets | score |
+| 4 | **TRANSFER AdvBench** — same 3 arms × 5 targets | score |
+| 5 | **A3** — authors' image × MM-SafetyBench-520 × 6 models | score |
+| 6 | **B11** — No-Attack (white.jpeg, no phrase) × 6 × {SafeBench, AdvBench} | score |
+| 7 | **B13** — CE-loss retrain (`--loss ce`) — also A10 timing | train |
+| 8 | **B14** — token-mode retrain (`--loss_mode token`) | train |
+| 9 | **B12** — no-constraints (`--no_transforms --tv_weight 0`) | train |
+| 10–11 | **B16** — TV sweep 0.2, 1.0 (0.5 ≈ 809 already have) | train |
+
+**Steps 2–4 are the transferability verification** (does the §3.2 projection, done the right way, improve black-box transfer?). Arms: PROJ-OFF = 809 (projection off, white-box 83.5), PROJ-ON = 843 (projection on, white-box 42.5), CONTROL = an 809 checkpoint matched to 843's white-box so any transfer gap is the projection's doing, not raw strength. Decisive metric: **transfer retention** = mean(black-box)/white-box, per arm. This supersedes the old standalone "A4 transfer 809" step.
 
 Each training step is the 809 recipe (D11 fix, no projection, 3000 steps, seed 0) with one knob flipped,
 so every ablation is single-variable against the reproduced baseline. Flip the status cells above to ✅/🟡
