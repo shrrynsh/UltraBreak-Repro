@@ -23,7 +23,7 @@
 |---|---|---|---|
 | **D11** | **The patch is never CLIP-normalised before injection — training optimises inside a 27%-wide grey band** | **Material — necessary, budget-gated · FIXED** | **Job 809: fix + 3000 steps → SafeBench 83.49% (reproduces). AdvBench 39% still open. Adapter fixed; email Q1** |
 | D12 | The released judge scores refusals as successes; inflation is run-dependent and reorders results | **Material** | State both judge columns everywhere; never rank on one |
-| D1 | Section 3.2 projection is never applied — `project_patch()` is dead code | **Material** | Supersede by D11 — the projection is missing from the *save* step, not the loop |
+| D1 | Section 3.2 projection is never applied — `project_patch()` is dead code | **Material** | Settled: projection is *harmful* once D11 is fixed (job 843: 42.5/17.9 vs 809's 83.5/39.0). Full-range wins |
 | D2 | Training corpus is 35 queries; paper's arithmetic implies 50 | **Material** | Ask authors (email Q4); fixed in our fork |
 | D3 | TV loss: Eq. 9 is isotropic+summed, code is anisotropic+averaged | Documentation | Note to authors; **do not change code** |
 | D10 | λ_TV = 0.5 over-smooths by 3.7× once the projection is active | **Material** | *Reframed as a symptom of D11*; `--tv_weight 0.134` deferred behind the fix + retrain |
@@ -131,6 +131,15 @@ Three pure pixel remaps of existing PNGs, no training, 85 minutes total:
 **Read D11 first.** `x_proj = clip(γ·x + β, 0, 1)` is *exactly* the image a `patch_only=False` run causes the model to perceive. So `project_patch()` being dead code is not a missing regulariser in the training loop — it is the paper describing the **deployable** image for a patch injected in normalised space. The projection is missing from the *save* step.
 
 That also explains why our "fix" backfired: `optimise_proj.py` applied the projection at the **injection** point, so jobs 625/639/640 double-apply it and the model perceives `γ(γx+β)+β`. The numbers line up — `γ·ultrabreak+β` is std 13.3, range [104,191]; job 625's *saved artifact* is std 9.8, range [105,189]. We were shipping the internal view.
+
+**Settled 2026-08-17 — the projection is HARMFUL once D11 is fixed (job 843).** With the units bug corrected, we ran the projection ON vs OFF at 3000 steps, one variable, seed 0:
+
+| run @ 3000 | projection | SafeBench | AdvBench | saved patch std |
+|---|---|---|---|---|
+| 809 | **off** | **83.49%** | **39.04%** | 33.9 (full range) |
+| 843 (projfix) | **on** | 42.54% | 17.88% | 11.9 (grey band) |
+
+Turning the projection on roughly **halves both scores** (−41 / −21 points). The cause is not optimisation — 843's training loss descended normally (text 0.196 ≈ 809's 0.182) — it is the *save step*: the projection writes the deployable image as `x_proj = clip(γx+β)`, compressing it into the ~27% grey band (std 11.9 vs 33.9), and [[D11]]'s job-683 T1 already showed band-confined patches are weak. So the projection cripples a well-trained patch at deployment. **Full-range (projection off) is decisively better; the §3.2 projection, taken literally, works against reproduction.** This is also the config `reproducibility/paper_faithful/` implements, so the paper-as-described under-reproduces even at a generous 3000 steps.
 
 The original entry follows unchanged for the audit trail.
 
