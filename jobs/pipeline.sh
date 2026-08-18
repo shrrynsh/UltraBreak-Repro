@@ -69,6 +69,7 @@ submit_next() {
 # Build a per-(patch,dataset) attack config using each benchmark's own recipe.
 build_cfg() {  # dataset patch out_cfg
   local ds="$1" img="$2" out="attack_configs/$3.csv"
+  local rc
   case "$ds" in
     safebench) python create_attack_configs.py --dataset safebench --config-type attack \
                  --exclude-train datasets/SafeBench-Tiny.csv --image "$img" --output "$out" ;;
@@ -78,12 +79,21 @@ build_cfg() {  # dataset patch out_cfg
                  --subsample 520 --image "$img" --output "$out" ;;
     *) echo "$LOG unknown dataset $ds" >&2; return 1 ;;
   esac
+  rc=$?
+  # A non-zero exit OR a truncated/empty output (e.g. the writer was interrupted
+  # between "Loaded" and "Saved") must not silently feed empty configs to score():
+  # that launched 5 doomed model gens per arm and produced all-nan% (job 892).
+  if (( rc != 0 )); then echo "$LOG build_cfg failed (rc=$rc) for $out" >&2; return 1; fi
+  [[ -s "$out" ]] || { echo "$LOG build_cfg produced empty $out" >&2; return 1; }
+  return 0
 }
 judge_extra() { [[ "$1" == advbench ]] && echo "--behaviors_csv datasets/adv_bench.csv --behaviors_col goal"; }
 
 # Score one config across a list of models (gen + v3 judge).
 score() {  # cfg dataset model...
   local cfg="$1" ds="$2"; shift 2
+  # Guard: never spend GPU gens on a missing/empty config.
+  [[ -s "attack_configs/${cfg}.csv" ]] || { echo "$LOG score: config attack_configs/${cfg}.csv missing/empty — skipping ${#} models" >&2; return 1; }
   local extra; extra="$(judge_extra "$ds")"
   for m in "$@"; do
     echo "$LOG   gen ${cfg} on ${m}"
@@ -108,7 +118,7 @@ transfer_arm() {  # arm_tag patch dataset
   local tag="$1" img="$2" ds="$3"
   [[ -f "$img" ]] || { echo "$LOG transfer: missing patch $img" >&2; return 1; }
   local cfg="xfer_${tag}_${ds}"
-  build_cfg "$ds" "$img" "$cfg"
+  build_cfg "$ds" "$img" "$cfg" || { echo "$LOG transfer: cfg build failed for $cfg — skipping $tag arm" >&2; return 1; }
   score "$cfg" "$ds" "${TARGETS_BB[@]}"
   echo "$LOG   [$tag/$ds] black-box ASR per target:"
   for m in "${TARGETS_BB[@]}"; do echo "$LOG     $m  $(asr_of "$cfg" "$m")%"; done
@@ -168,6 +178,10 @@ PY
       ;;
   2)  # TRANSFER on SafeBench: PROJ-OFF (809) vs PROJ-ON (843) vs CONTROL (matched WB)
       echo "$LOG TRANSFER SafeBench x 5 black-box targets: projoff / projon / control"
+      # Preflight before chaining: both patch inputs must exist, else halt the
+      # chain here (don't submit a successor that would inherit a broken run).
+      [[ -f "$PATCH_PROJOFF" ]] || { echo "$LOG missing patch $PATCH_PROJOFF" >&2; exit 1; }
+      [[ -f "$PATCH_PROJON"  ]] || { echo "$LOG missing patch $PATCH_PROJON"  >&2; exit 1; }
       CTRL=""; [[ -f "$CTRL_FILE" ]] && CTRL=$(head -1 "$CTRL_FILE")
       submit_next
       transfer_arm projoff "$PATCH_PROJOFF" safebench
@@ -177,6 +191,8 @@ PY
       ;;
   3)  # TRANSFER on AdvBench: same three arms
       echo "$LOG TRANSFER AdvBench x 5 black-box targets: projoff / projon / control"
+      [[ -f "$PATCH_PROJOFF" ]] || { echo "$LOG missing patch $PATCH_PROJOFF" >&2; exit 1; }
+      [[ -f "$PATCH_PROJON"  ]] || { echo "$LOG missing patch $PATCH_PROJON"  >&2; exit 1; }
       CTRL=""; [[ -f "$CTRL_FILE" ]] && CTRL=$(head -1 "$CTRL_FILE")
       submit_next
       transfer_arm projoff "$PATCH_PROJOFF" advbench
@@ -186,11 +202,13 @@ PY
       ;;
   4)  # EXT-BENCHMARKS — StrongREJECT + HarmBench (native + norm) on the 5 patches
       echo "$LOG EXT-BENCHMARKS: running ext_benchmarks/run_ext_benchmarks.sh"
+      [[ -f ext_benchmarks/run_ext_benchmarks.sh ]] || { echo "$LOG missing ext_benchmarks/run_ext_benchmarks.sh" >&2; exit 1; }
       submit_next
       bash ext_benchmarks/run_ext_benchmarks.sh || echo "$LOG ext-benchmarks returned nonzero"
       ;;
   5)  # REPRO — the paper-faithful reproduction (Table 4, paper-exact 1300 iters)
       echo "$LOG REPRO: running jobs/run_repro_paper_faithful.sh (reproducibility/paper_faithful)"
+      [[ -f jobs/run_repro_paper_faithful.sh ]] || { echo "$LOG missing jobs/run_repro_paper_faithful.sh" >&2; exit 1; }
       submit_next
       bash jobs/run_repro_paper_faithful.sh || echo "$LOG repro run returned nonzero"
       ;;
