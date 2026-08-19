@@ -224,4 +224,10 @@ AGENTS.md
 # UltraBreak repo-specific generated artifacts
 /repro/
 /logs/
+# separate venv for GLM-4.1V eval (transformers 5.x); rebuild locally, never commit
+/repro_glm/
+
+# GLM smoke-test scaffolding (throwaway 2-row env check)
+/attack_configs/glm_smoke.csv
+/results/glm_smoke/
 

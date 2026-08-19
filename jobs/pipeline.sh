@@ -89,6 +89,37 @@ build_cfg() {  # dataset patch out_cfg
 }
 judge_extra() { [[ "$1" == advbench ]] && echo "--behaviors_csv datasets/adv_bench.csv --behaviors_col goal"; }
 
+# GLM-4.1V-9B-Thinking needs transformers>=4.53 (Glm4vForConditionalGeneration),
+# which conflicts with the pinned 4.51.3 the surrogate/other targets require. It
+# runs GENERATION in a separate venv (repro_glm) that inherits nothing from repro
+# except a matching torch. The judge (evaluate.py) still runs in the default env.
+GLM_PY="repro_glm/bin/python"
+py_for_gen() {  # model -> python interpreter for generation only
+  if [[ "$1" == "THUDM/GLM-4.1V-9B-Thinking" && -x "$GLM_PY" ]]; then echo "$GLM_PY"; else echo python; fi
+}
+
+# Resume guard: exit 0 iff a COMPLETE generation already exists for this cell
+# (result has a response for every config row). Lets a re-run reuse valid cells
+# from a prior job (e.g. 908's projoff/projon SafeBench targets) and regenerate
+# ONLY the missing ones, instead of redoing the whole matrix.
+gen_complete() {  # cfg model
+  python - "attack_configs/$1.csv" "results/$1/$2.csv" <<'PY'
+import sys, os, pandas as pd
+cfg, res = sys.argv[1], sys.argv[2]
+ok = False
+try:
+    if os.path.exists(res):
+        n_cfg = len(pd.read_csv(cfg))
+        d = pd.read_csv(res)
+        if "response" in d.columns:
+            ne = d["response"].astype(str).str.strip().replace("nan", "").astype(bool).sum()
+            ok = len(d) >= n_cfg and ne >= n_cfg
+except Exception:
+    ok = False
+sys.exit(0 if ok else 1)
+PY
+}
+
 # Score one config across a list of models (gen + v3 judge).
 score() {  # cfg dataset model...
   local cfg="$1" ds="$2"; shift 2
@@ -96,10 +127,16 @@ score() {  # cfg dataset model...
   [[ -s "attack_configs/${cfg}.csv" ]] || { echo "$LOG score: config attack_configs/${cfg}.csv missing/empty — skipping ${#} models" >&2; return 1; }
   local extra; extra="$(judge_extra "$ds")"
   for m in "$@"; do
-    echo "$LOG   gen ${cfg} on ${m}"
-    python evaluation/attack.py --model_name "$m" --attack_config "$cfg" || { echo "$LOG gen failed $m"; continue; }
     local res="results/${cfg}/${m}.csv"
+    if gen_complete "$cfg" "$m"; then
+      echo "$LOG   reuse existing gen ${cfg} / ${m} (skip generation)"
+    else
+      local gpy; gpy="$(py_for_gen "$m")"
+      echo "$LOG   gen ${cfg} on ${m} (env: ${gpy%%/bin/*})"
+      "$gpy" evaluation/attack.py --model_name "$m" --attack_config "$cfg" || { echo "$LOG gen failed $m"; continue; }
+    fi
     [[ -f "$res" ]] || { echo "$LOG missing $res"; continue; }
+    # Always (re)judge from the gen CSV so every cell is scored by the same judge.
     python evaluation/evaluate.py --attack_result "$res" --output_suffix "_harmbench_v3.csv" $extra || echo "$LOG judge failed $m"
   done
 }
