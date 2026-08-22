@@ -84,7 +84,54 @@ attack should carry beyond the exact benchmark it was tuned on.
 
 ---
 
-## 5. Bottom line
+## 5. Consistency with SafeBench / AdvBench
+
+Do these external scores agree with the headline SafeBench/AdvBench numbers for the
+same patches? Here is every benchmark side by side (ASR %, v3 judge, white-box
+Qwen2-VL):
+
+| Patch | SafeBench | AdvBench | StrongREJECT nat / norm | HarmBench nat / norm |
+|---|---|---|---|---|
+| **809** | **83.49** | 39.04 | 21.7 / 26.2 | 22.0 / 36.0 |
+| **625** | 48.25 | 22.31 | 29.4 / 23.0 | 26.5 / 31.5 |
+| **622** | 29.84 | 1.73 | 6.7 / 7.4 | 17.5 / 6.5 |
+| **773** | 23.49 | 1.35 | 8.6 / 6.1 | 18.0 / 8.0 |
+| **authors** | 78.73* | 67.69* | 29.7 / 35.5 | 28.5 / 42.5 |
+
+\*authors' white-box v3 from `FINDINGS.md` (clean-315 SafeBench / normalized
+AdvBench). On the `_ultrabreak` configs on disk, authors' AdvBench reads only ~9% —
+a different prompt set/form, i.e. the raw-vs-norm confound, not a contradiction.
+
+### Ranking table (1 = best / highest ASR, per benchmark)
+| Patch | SafeBench | AdvBench | SR nat | SR norm | HB nat | HB norm | **avg rank** |
+|---|---|---|---|---|---|---|---|
+| **authors** | 2 | 1 | 1 | 1 | 1 | 1 | **1.2** |
+| **809** | 1 | 2 | 3 | 2 | 3 | 2 | **2.2** |
+| **625** | 3 | 3 | 2 | 3 | 2 | 3 | **2.7** |
+| **622** | 4 | 4 | 5 | 4 | 5 | 5 | **4.5** |
+| **773** | 5 | 5 | 4 | 5 | 4 | 4 | **4.5** |
+
+**Overall generalization order:** authors > 809 > 625 > (622 ≈ 773).
+
+### Verdict: broadly consistent, with two informative exceptions
+**Consistent ✅** — the strong/weak tiering holds on all six benchmarks. authors and
+809 are top; 622 and 773 are bottom everywhere. Nothing flips a weak patch to the
+top or vice-versa.
+
+**Two real deviations ⚠️**
+1. **625 over-performs externally.** Mid-pack on white-box AdvBench (22.3) but rank
+   2 on StrongREJECT-native and HarmBench-native — it rivals the authors' image and
+   beats 809 there. It generalizes *better* than its AdvBench score predicts.
+2. **809's lead is SafeBench-specific.** It is rank 1 on white-box SafeBench (even
+   above authors), but rank 2–3 everywhere else and **below the authors' image on
+   every external benchmark**. Its SafeBench peak does not carry over — exactly the
+   documented "809 overfits SafeBench-Tiny" finding ([[../DISCREPANCIES#D11]]).
+
+Both exceptions are already part of the reproduction story, so the scores hang
+together — the external benchmarks confirm rather than contradict the headline
+numbers.
+
+## 6. Bottom line
 
 **Generalization ranks the same as reproduction quality:**
 `authors' image > 809 (our reproduction) > under-trained / buggy retrains`.
