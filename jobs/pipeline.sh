@@ -58,7 +58,17 @@ echo "$LOG start $(date)"
 
 submit_next() {
   local n=$((STEP + 1))
-  if (( n > TOTAL )); then echo "$LOG pipeline complete — no successor."; return; fi
+  if (( n > TOTAL )); then
+    # Order: current run (this pipeline) -> paper-vs-code comparison -> remaining
+    # ablations. So when this pipeline finishes we seed the exact comparison; that
+    # job, on completing its matrix, seeds pipeline2 -> pipeline3. Single slot flows
+    # straight on without exceeding MaxSubmit.
+    local jx
+    jx=$(sbatch --parsable "jobs/run_exact_comparison.sh" 1 2>&1) \
+      && echo "$LOG pipeline complete — seeded exact comparison as job $jx" \
+      || echo "$LOG pipeline complete — could not seed exact comparison: $jx (run: sbatch jobs/run_exact_comparison.sh 1)"
+    return
+  fi
   local jid
   jid=$(sbatch --parsable "jobs/pipeline.sh" "$n" 2>&1) \
     && echo "$LOG queued next step $n as job $jid" \

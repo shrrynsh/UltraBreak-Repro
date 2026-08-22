@@ -136,17 +136,18 @@ def main(args):
         query_df.to_csv(f"{save_path}/{attack_config}/{model_name}.csv")
 
 
-    elif model_name == "Qwen/Qwen2.5-VL-7B-Instruct":
+    elif model_name.startswith("Qwen/Qwen2.5-VL-") and model_name.endswith("-Instruct"):
+        # Matches the 3B / 7B / 32B victims used in Fig 2a (C2a), not just 7B.
         from transformers import Qwen2_5_VLForConditionalGeneration, AutoTokenizer, AutoProcessor
         from qwen_vl_utils import process_vision_info
-                
+
         # default: Load the model on the available device(s)
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-          "Qwen/Qwen2.5-VL-7B-Instruct", torch_dtype="auto", device_map="auto"
+          model_name, torch_dtype="auto", device_map="auto"
         )
-           
+
         # default processer
-        processor = AutoProcessor.from_pretrained("Qwen/Qwen2.5-VL-7B-Instruct")
+        processor = AutoProcessor.from_pretrained(model_name)
         print(f"Model config: {model.config}")
         print(f"Model dtype: {model.dtype}")
         print(f"Training mode: {model.training}") 

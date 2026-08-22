@@ -61,14 +61,23 @@ for t in tags:
 print(done,exp)
 PY
 }
+# On completion, hand the slot to the remaining ablations (pipeline2 -> pipeline3).
+# Sentinel-guarded so the whole self-chain seeds pipeline2 exactly once.
+SEED_SENTINEL="outputs/.exactcmp_seeded_pipeline2"
+seed_pipeline2(){
+  [[ -f "$SEED_SENTINEL" ]] && { echo "$L pipeline2 already seeded."; return; }
+  local j2; j2=$(sbatch --parsable "jobs/pipeline2.sh" 1 2>&1) \
+    && { touch "$SEED_SENTINEL"; echo "$L matrix COMPLETE — seeded pipeline2 as job $j2"; } \
+    || echo "$L could not seed pipeline2: $j2 (run: sbatch jobs/pipeline2.sh 1)"
+}
 read START_DONE EXP < <(progress)
 echo "$L attempt ${ATTEMPT}/${MAX_ATTEMPTS} — progress ${START_DONE}/${EXP} judged cells"
-if (( EXP>0 && START_DONE>=EXP )); then echo "$L COMPLETE — nothing to do."; exit 0; fi
+if (( EXP>0 && START_DONE>=EXP )); then echo "$L COMPLETE — nothing to do."; seed_pipeline2; exit 0; fi
 RESUBMITTED=0
 do_resubmit(){  # reason: end|timeout
   [[ $RESUBMITTED -eq 1 ]] && return; RESUBMITTED=1
   local d e; read d e < <(progress)
-  if (( d>=e )); then echo "$L COMPLETE ($d/$e) — chain ends."; return; fi
+  if (( d>=e )); then echo "$L COMPLETE ($d/$e) — chain ends."; seed_pipeline2; return; fi
   if (( ATTEMPT>=MAX_ATTEMPTS )); then echo "$L MAX_ATTEMPTS reached at $d/$e — stopping (resubmit manually if needed)."; return; fi
   if [[ "$1" == end ]] && (( d<=START_DONE )); then
     echo "$L NO PROGRESS this pass ($d<=$START_DONE) — stopping chain; inspect failing cells."; return; fi

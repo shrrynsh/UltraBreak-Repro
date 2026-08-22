@@ -123,6 +123,7 @@ def project_to_constrained_space(adv_patch, gamma, beta):
 
 SURROGATES = {
     "qwen": ("Qwen/Qwen2-VL-7B-Instruct", Qwen2Adapter),
+    "qwen2b": ("Qwen/Qwen2-VL-2B-Instruct", Qwen2Adapter),   # Fig 2a (C2a) small surrogate
     "llava": ("llava-hf/llava-v1.6-mistral-7b-hf", Llava16Adapter),
 }
 

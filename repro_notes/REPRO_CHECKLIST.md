@@ -15,10 +15,41 @@ and [`FINDINGS.md`](FINDINGS.md) (the reproduction narrative). Update the status
 full transfer experiment, B11, and B13, and produced the paper-faithful retrain. The exact code-vs-paper
 comparison (job 1058, self-resuming) is in flight.
 
-**Coverage baseline** (re-derived from `ls results/`, 2026-08-16). Authors' released `ultrabreak.png` is
-scored on — SafeBench: {Qwen2-VL, Qwen2.5-VL, Qwen-VL-Chat, LLaVA-1.6, GLM-4.1V}; AdvBench: {Qwen2-VL,
-Qwen2.5-VL, Kimi-VL, LLaVA-1.6, GLM-4.1V}. Our retrains (622/625/639/640/773/808/809) are **Qwen2-VL only**.
-No MM-SafetyBench / baseline / proprietary / frontier results exist; StrongREJECT native scorer is absent.
+---
+
+## What is ACTUALLY running right now (2026-08-22)
+
+Only two things are live on the cluster. **Most items in the tables below have no
+job** — they are done, backlog, or out-of-scope. This section is the honest map so
+the tables are not mistaken for "all in progress."
+
+| Job | Checklist item | State |
+|---|---|---|
+| **1020** | **B14** token-mode retrain | 🔵 running (pipeline step 10/13) |
+| **1041** | **B12** no-constraints retrain | ⏳ pending (pipeline step 11) |
+| *(spawned by pipeline)* | **B16a/B16b** TV-weight 0.2 & 1.0 | ⏳ not yet submitted (steps 12–13) |
+| **1058** | exact code-vs-paper comparison (144-cell factorial + code-faithful train) | ⏳ pending, self-resuming |
+
+**Done (jobs finished):** A1, A2, A3 (job 987/994) · A4 SB+AB, transfer experiment (880/935/939) ·
+A7-partial ext-benchmarks (950) · paper-faithful retrain (982) · B11 (997) · B13 (1005) · D-asr.
+
+**Now IMPLEMENTED and pipelined (auto-chained, 2026-08-22):** the runnable backlog
+was built out and chained so it runs one-by-one after the ablations:
+- **`jobs/pipeline2.sh`** (chained after pipeline.sh step 13): **B15** phrase sweep
+  (exact paper phrases) · **A4-MM** 809 × MM-SafetyBench × 5 targets · **C2b** LLaVA-surrogate train+eval.
+- **`jobs/pipeline3.sh`** (chained after pipeline2): **A10** timing (`analysis/timing_table.py`) ·
+  **C6** first-token dist (`analysis/first_token_dist.py`) · **C4** loss landscape
+  (`analysis/loss_landscape.py`) · **C2a** model-size transfer (surrogates 2B/7B → victims 3B/7B/32B;
+  downloads the 3 missing weight sets; attack.py + optimise_proj.py extended). Specs in [[paper_specs]].
+
+**Still no job — genuine backlog (⬜):** A5 (FigStep/VAJM/UMK baselines — no attack code) ·
+D-sr / A7-native (StrongREJECT 0–1 scorer — needs API key or SR model). C3 (qualitative patch figure) — trivial, do ad-hoc.
+
+**Out of scope (🚫):** A6, A8 (paid proprietary/frontier APIs).
+
+**Full auto-chain now:** `pipeline.sh (…→B16) → pipeline2 (B15, A4-MM, C2b) → pipeline3
+(A10, C6, C4, C2a)`, each hop handed off as the single slot frees. Job 1058 (exact
+comparison) self-chains independently.
 
 ---
 
