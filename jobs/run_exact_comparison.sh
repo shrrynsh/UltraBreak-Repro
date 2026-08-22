@@ -6,6 +6,7 @@
 #SBATCH --time=24:00:00
 #SBATCH --output=logs/job_%j.out
 #SBATCH --error=logs/job_%j.err
+#SBATCH --signal=B:USR1@600
 #
 # EXACT reproduction comparison, controlled across the eval axes, white-box AND
 # black-box (transfer), reporting BOTH ASR and NRR.
@@ -36,6 +37,46 @@ MODELS_ALL=( "$WB" "Qwen/Qwen2.5-VL-7B-Instruct" "Qwen/Qwen-VL-Chat" \
   "llava-hf/llava-v1.6-mistral-7b-hf" "moonshotai/Kimi-VL-A3B-Instruct" "THUDM/GLM-4.1V-9B-Thinking" )
 STAGE="${SLURM_TMPDIR:-/tmp}/exactcmp_${SLURM_JOB_ID:-manual}"; mkdir -p "$STAGE" logs
 L="[exactcmp]"; echo "$L start $(date)"
+
+# ---------------- auto-resume chain ------------------------------------------
+# Self-chaining until the 3x4x6x2 matrix is complete. A successor (attempt+1) is
+# submitted only while THIS job is ENDING — at normal finish OR on the pre-wall
+# USR1 signal (600s lead) — so we never exceed MaxSubmit and never leave work
+# stranded. Cells are resume-guarded, so each window advances and nothing is
+# recomputed. The chain stops itself when: matrix complete, a full pass makes no
+# progress (a permanently-failing cell), or MAX_ATTEMPTS is hit.
+ATTEMPT="${1:-1}"; MAX_ATTEMPTS=8
+progress(){ python - <<'PY'
+import os
+tags=['cf','pf','img']; vars_=['sb315','sb350','abraw','abnorm']
+models=["Qwen/Qwen2-VL-7B-Instruct","Qwen/Qwen2.5-VL-7B-Instruct","Qwen/Qwen-VL-Chat",
+        "llava-hf/llava-v1.6-mistral-7b-hf","moonshotai/Kimi-VL-A3B-Instruct","THUDM/GLM-4.1V-9B-Thinking"]
+exp=done=0
+for t in tags:
+    for v in vars_:
+        for m in models:
+            for suf in ['_harmbench.csv','_harmbench_v3.csv']:
+                exp+=1
+                if os.path.exists(f"results/cmp_{t}_{v}/{m}{suf}"): done+=1
+print(done,exp)
+PY
+}
+read START_DONE EXP < <(progress)
+echo "$L attempt ${ATTEMPT}/${MAX_ATTEMPTS} — progress ${START_DONE}/${EXP} judged cells"
+if (( EXP>0 && START_DONE>=EXP )); then echo "$L COMPLETE — nothing to do."; exit 0; fi
+RESUBMITTED=0
+do_resubmit(){  # reason: end|timeout
+  [[ $RESUBMITTED -eq 1 ]] && return; RESUBMITTED=1
+  local d e; read d e < <(progress)
+  if (( d>=e )); then echo "$L COMPLETE ($d/$e) — chain ends."; return; fi
+  if (( ATTEMPT>=MAX_ATTEMPTS )); then echo "$L MAX_ATTEMPTS reached at $d/$e — stopping (resubmit manually if needed)."; return; fi
+  if [[ "$1" == end ]] && (( d<=START_DONE )); then
+    echo "$L NO PROGRESS this pass ($d<=$START_DONE) — stopping chain; inspect failing cells."; return; fi
+  local nid; nid=$(sbatch --parsable "jobs/run_exact_comparison.sh" $((ATTEMPT+1)) 2>&1) \
+    && echo "$L AUTO-RESUME attempt $((ATTEMPT+1)) queued as job $nid (progress $d/$e; reason=$1)" \
+    || echo "$L WARN resubmit failed: $nid"
+}
+trap 'echo "$L USR1: wall approaching, checkpointing"; do_resubmit timeout; exit 0' USR1
 
 # ---------------- 1) TRAIN exact code-faithful @1300 -------------------------
 CF_PNG="outputs/codefaithful_exact_1300/1300.png"
@@ -155,4 +196,5 @@ else:
             print(f"### TRANSFER {metric}% — {lbl} ###")
             print(sub.pivot_table(index="model",columns=["patch","judge"],values=metric,aggfunc="first").to_string(),"\n")
 PY
+do_resubmit end
 echo "$L done $(date)"

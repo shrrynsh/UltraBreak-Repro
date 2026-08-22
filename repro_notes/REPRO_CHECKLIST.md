@@ -4,7 +4,15 @@ A living tracker of **every experiment, ablation, and figure in the paper**, aga
 reproduction has actually run. Companion to [`DISCREPANCIES.md`](DISCREPANCIES.md) (code-vs-paper defects)
 and [`FINDINGS.md`](FINDINGS.md) (the reproduction narrative). Update the status cells as jobs land.
 
+**Detailed topic notes (2026-08-22):** [`transfer_experiment/`](transfer_experiment/README.md) ·
+[`reproducibility/`](reproducibility/README.md) · [`author_code_defects/`](author_code_defects/README.md).
+
 **Legend:** ✅ reproduced · 🟡 partial · ⏳ in flight (job#) · ⬜ not started (infra ready) · 🚫 out of scope.
+
+**Update 2026-08-22:** the self-chaining `jobs/pipeline.sh` ran steps 1–9 to completion (jobs
+880→935→939→950→982→987→994→997→1005); step 10 (B14) is running as job 1020. This cleared A1/A2/A3, the
+full transfer experiment, B11, and B13, and produced the paper-faithful retrain. The exact code-vs-paper
+comparison (job 1058, self-resuming) is in flight.
 
 **Coverage baseline** (re-derived from `ls results/`, 2026-08-16). Authors' released `ultrabreak.png` is
 scored on — SafeBench: {Qwen2-VL, Qwen2.5-VL, Qwen-VL-Chat, LLaVA-1.6, GLM-4.1V}; AdvBench: {Qwen2-VL,
@@ -17,26 +25,26 @@ No MM-SafetyBench / baseline / proprietary / frontier results exist; StrongREJEC
 
 | # | Paper item | Status | What's missing |
 |---|---|---|---|
-| A1 | **Table 1** — UltraBreak ASR, authors' image, 6 open models × SafeBench | 🟡 5/6 | **Kimi-VL** on SafeBench |
-| A2 | **Table 1** — …× AdvBench | 🟡 5/6 | **Qwen-VL-Chat** on AdvBench |
-| A3 | **Table 1** — …× **MM-SafetyBench** (1680, or subsampled 520) | ⬜ 0/6 | loader + `--subsample` built (`create_attack_configs.load_mm_safetybench`), never scored |
-| A4 | **Table 1** — transfer matrix with **our retrained** patch (809), not just the authors' image | ⬜ | our patch scored on Qwen2-VL only; 5 transfer targets × 3 datasets untried — the *true* transfer reproduction |
+| A1 | **Table 1** — UltraBreak ASR, authors' image, 6 open models × SafeBench | ✅ 6/6 | done (Kimi-VL/SafeBench = 66.67%, job 987) |
+| A2 | **Table 1** — …× AdvBench | ✅ 6/6 | done (Qwen-VL-Chat/AdvBench = 76.15%, job 987) |
+| A3 | **Table 1** — …× **MM-SafetyBench** (subsampled 520) | ✅ 6/6 | done (job 994): Qwen2-VL 37.3, Qwen2.5 48.1, Qwen-VL-Chat 56.0, LLaVA 74.6, Kimi 54.4, GLM 38.1 |
+| A4 | **Table 1** — transfer matrix with **our retrained** patch (809), not just the authors' image | 🟡 SB+AB | **done for SafeBench + AdvBench** (jobs 935/939 — 809 = the projoff arm × 5 targets); MM-SafetyBench transfer still open. See [[transfer_experiment/README]] |
 | A5 | **Table 1** — baselines **FigStep / VAJM / UMK** | ⬜ | none implemented; the comparative claim rests on these (E4) |
 | A6 | **Table 1** — proprietary GPT-4.1-nano / Gemini-2.5-flash-lite / Claude-3-haiku | 🚫 | paid API — report as untested, not omitted |
-| A7 | **Table 2** — **StrongREJECT scores** on AdvBench (UltraBreak vs VAJM/UMK) | ⬜ | SR *native* 0–1 scorer absent (job 846 scores SR *prompts* with the HarmBench judge — related, not Table 2); baselines missing |
+| A7 | **Table 2** — **StrongREJECT scores** on AdvBench (UltraBreak vs VAJM/UMK) | 🟡 | ext-benchmarks (job 950) scored StrongREJECT+HarmBench prompts (native+norm) with the HarmBench judge for authors' image + 4 retrains; SR *native* 0–1 scorer still absent; baselines missing |
 | A8 | **Table 9** — frontier GPT-5 / Claude-Sonnet-4.5 subset | 🚫 | paid API |
-| A10 | **Table 10** — compute overhead, CE vs semantic (s/iter) | ⬜ | per-step wall-clock already logged in `losses.csv`; needs a CE run (B13) to compare |
+| A10 | **Table 10** — compute overhead, CE vs semantic (s/iter) | 🟡 | CE run done (B13, job 1005); per-step wall-clock in `losses.csv` — comparison table not yet compiled |
 
 ## B. Ablations (Tables 3, 5, 6)
 
 | # | Paper item | Status | What's missing / enabling flag |
 |---|---|---|---|
-| B11 | **Table 3** — *w/o jailbreak image* (No-Attack) | 🟡 | `attack_configs/{advbench,safebench}_no_attack.csv` built; **not scored** |
-| B12 | **Table 3** — *w/o constraints* (transforms + TV off) | ⬜ | `--no_transforms` / `--tv_weight 0` |
-| B13 | **Table 3** — *w/o semantic loss* (CE baseline) | ⬜ | `--loss ce` (also yields A10 timing) |
-| B14 | **Table 3** — *w/o attention weighting* (token mode, τ→0) | ⬜ | `--loss_mode token` |
-| B15 | **Table 5** — affirming-phrase sensitivity (3 phrases, GLM, SafeBench) | ⬜ | `--phrase` (cheap) |
-| B16 | **Table 6** — **TV weight** {0, 0.2, 0.5, 1} on Qwen-VL + GLM | ⬜ | `--tv_weight`; **high value — directly tests [[DISCREPANCIES#D10]]**; paper claims peak at 0.2 |
+| B11 | **Table 3** — *w/o jailbreak image* (No-Attack) | ✅ | done (job 997), 6 models × {SafeBench, AdvBench} — the transfer baseline. LLaVA is weakly aligned (57.1/48.7 with no attack). See [[transfer_experiment/README]] |
+| B12 | **Table 3** — *w/o constraints* (transforms + TV off) | ⏳ | pipeline step 11 (pending) — `--no_transforms --tv_weight 0` |
+| B13 | **Table 3** — *w/o semantic loss* (CE baseline) | ✅ | done (job 1005): SafeBench 67.94%, AdvBench 15.77% (v3). Also yields A10 timing |
+| B14 | **Table 3** — *w/o attention weighting* (token mode, τ→0) | ⏳ 1020 | pipeline step 10, **running** — `--loss_mode token` |
+| B15 | **Table 5** — affirming-phrase sensitivity (3 phrases, GLM, SafeBench) | ⬜ | `--phrase` (cheap); not in the current pipeline |
+| B16 | **Table 6** — **TV weight** {0, 0.2, 0.5, 1} on Qwen-VL + GLM | ⏳ | pipeline steps 12–13 (pending), TV 0.2 & 1.0 (0.5 ≈ 809 already); **tests [[DISCREPANCIES#D10]]** |
 
 ## C. Analysis figures (2–6)
 
@@ -58,31 +66,36 @@ No MM-SafetyBench / baseline / proprietary / frontier results exist; StrongREJEC
 ---
 
 ## In flight
-⏳ **843** projfix · **844** doublesquash · **846** ext-benchmarks (StrongREJECT + HarmBench prompts,
-native+norm, our 5 patches, HarmBench-judged → not the same as A7's native SR scorer).
+⏳ **1020** — pipeline step 10, B14 token-mode retrain (running).
+⏳ **1058** — exact code-vs-paper comparison (self-resuming until its 144-cell matrix completes): the
+code-faithful **retrain** (`optimise_exact.py`, authors' verbatim method) vs the paper-faithful retrain vs
+the released image, across SafeBench{315,350} × AdvBench{raw,norm} × judge{v1,v3} × 6 models × {ASR, NRR}.
+See [[reproducibility/README]].
 
-## Scheduled — `jobs/pipeline.sh` (self-chaining, one job at a time)
-A self-chaining pipeline works these items in priority order within the cluster limits (MaxJobs=1,
-MaxSubmit=3, 24h/job). Seeded by `jobs/seed_pipeline.sh` when a slot frees.
+## `jobs/pipeline.sh` — actual run order (self-chaining, one job at a time)
+Cluster limits: MaxJobs=1, MaxSubmit=3, 24h/job. Status reflects the 2026-08-22 run.
 
-| step | checklist item | kind |
-|---|---|---|
-| 1 | **A1 + A2** — Kimi/SafeBench, Qwen-VL-Chat/AdvBench (authors' image) | score |
-| 2 | **TRANSFER control-find** — 809 checkpoint matched to 843's white-box (~42.5%) | score |
-| 3 | **TRANSFER SafeBench** — PROJ-OFF (809) / PROJ-ON (843) / CONTROL × 5 black-box targets | score |
-| 4 | **TRANSFER AdvBench** — same 3 arms × 5 targets | score |
-| 5 | **A3** — authors' image × MM-SafetyBench-520 × 6 models | score |
-| 6 | **B11** — No-Attack (white.jpeg, no phrase) × 6 × {SafeBench, AdvBench} | score |
-| 7 | **B13** — CE-loss retrain (`--loss ce`) — also A10 timing | train |
-| 8 | **B14** — token-mode retrain (`--loss_mode token`) | train |
-| 9 | **B12** — no-constraints (`--no_transforms --tv_weight 0`) | train |
-| 10–11 | **B16** — TV sweep 0.2, 1.0 (0.5 ≈ 809 already have) | train |
+| step | job | checklist item | kind | status |
+|---|---|---|---|---|
+| 1 | 880 | **TRANSFER control-find** — 809 checkpoint matched to 843's white-box (~42.5%) → step 1000 (43.17%) | score | ✅ |
+| 2 | 935 | **TRANSFER SafeBench** — PROJ-OFF (809) / PROJ-ON (843) / CONTROL × 5 targets | score | ✅ |
+| 3 | 939 | **TRANSFER AdvBench** — same 3 arms × 5 targets | score | ✅ |
+| 4 | 950 | **ext-benchmarks** — StrongREJECT + HarmBench (native+norm), authors' image + 4 retrains | score | ✅ |
+| 5 | 982 | **REPRO paper-faithful** retrain @1300 → SafeBench 64.13%, AdvBench 10.19% (v3) | train | ✅ |
+| 6 | 987 | **A1 + A2** — Kimi/SafeBench, Qwen-VL-Chat/AdvBench (authors' image) | score | ✅ |
+| 7 | 994 | **A3** — authors' image × MM-SafetyBench-520 × 6 models | score | ✅ |
+| 8 | 997 | **B11** — No-Attack × 6 × {SafeBench, AdvBench} | score | ✅ |
+| 9 | 1005 | **B13** — CE-loss retrain (`--loss ce`) — also A10 timing | train | ✅ |
+| 10 | 1020 | **B14** — token-mode retrain (`--loss_mode token`) | train | ⏳ running |
+| 11 | — | **B12** — no-constraints (`--no_transforms --tv_weight 0`) | train | ⏳ pending |
+| 12–13 | — | **B16** — TV sweep 0.2, 1.0 (0.5 ≈ 809 already) | train | ⏳ pending |
 
-**Steps 2–4 are the transferability verification** (does the §3.2 projection, done the right way, improve black-box transfer?). Arms: PROJ-OFF = 809 (projection off, white-box 83.5), PROJ-ON = 843 (projection on, white-box 42.5), CONTROL = an 809 checkpoint matched to 843's white-box so any transfer gap is the projection's doing, not raw strength. Decisive metric: **transfer retention** = mean(black-box)/white-box, per arm. This supersedes the old standalone "A4 transfer 809" step.
+**Steps 1–3 are the transferability verification** (does the §3.2 projection, done the right way, improve
+black-box transfer?). **Result: no** — projon is the best arm only on Kimi-VL; elsewhere projoff ≈ control ≥
+projon. Full analysis in [[transfer_experiment/README]].
 
 Each training step is the 809 recipe (D11 fix, no projection, 3000 steps, seed 0) with one knob flipped,
-so every ablation is single-variable against the reproduced baseline. Flip the status cells above to ✅/🟡
-as steps land.
+so every ablation is single-variable against the reproduced baseline.
 
 ## Not tracked here (our contribution, in `FINDINGS.md`)
 Authors' image reproduces SafeBench **exactly** (257/315 = 81.59%) and AdvBench ≈ (74.62% v1 vs 72.69%);
@@ -102,6 +115,9 @@ This checklist tracks only *paper experiments not yet reproduced*.
 6. **D-sr / A7** — implement the StrongREJECT native scorer (needs the API/model decision).
 7. 🚫 **A6 / A8** — proprietary & frontier: report as untested (API-gated).
 
-**Tally:** paper items = 22. Done ✅ 1 · partial 🟡 5 · not-started ⬜ 12 · out-of-scope 🚫 4.
-Of the 18 authors'-image Table-1 cells (6 models × 3 datasets), **10 done, 8 missing** (2 open cells + all
-6 MM-SafetyBench).
+**Tally (updated 2026-08-22):** paper items = 22. Done ✅ 7 (A1, A2, A3, B11, B13, D-asr, + the transfer
+experiment) · partial 🟡 4 (A4, A7, A10, C3) · in-flight ⏳ 3 (B12, B14, B16) · not-started ⬜ 4 (A5, B15,
+C-figs, C2) · out-of-scope 🚫 4 (A6, A8, frontier).
+The **18 authors'-image Table-1 cells** (6 models × 3 datasets) are now **all 18 done** (SafeBench + AdvBench
++ MM-SafetyBench complete). The remaining gaps are baselines (A5), the native StrongREJECT scorer (A7/D-sr),
+figures, and the two pending training ablations.
