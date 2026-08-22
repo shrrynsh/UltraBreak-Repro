@@ -5,7 +5,8 @@ reproduction has actually run. Companion to [`DISCREPANCIES.md`](DISCREPANCIES.m
 and [`FINDINGS.md`](FINDINGS.md) (the reproduction narrative). Update the status cells as jobs land.
 
 **Detailed topic notes (2026-08-22):** [`transfer_experiment/`](transfer_experiment/README.md) ·
-[`reproducibility/`](reproducibility/README.md) · [`author_code_defects/`](author_code_defects/README.md).
+[`reproducibility/`](reproducibility/README.md) · [`author_code_defects/`](author_code_defects/README.md) ·
+[`ext_benchmarks/`](ext_benchmarks/README.md).
 
 **Legend:** ✅ reproduced · 🟡 partial · ⏳ in flight (job#) · ⬜ not started (infra ready) · 🚫 out of scope.
 
