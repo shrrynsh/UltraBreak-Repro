@@ -4,9 +4,10 @@ A living tracker of **every experiment, ablation, and figure in the paper**, aga
 reproduction has actually run. Companion to [`DISCREPANCIES.md`](DISCREPANCIES.md) (code-vs-paper defects)
 and [`FINDINGS.md`](FINDINGS.md) (the reproduction narrative). Update the status cells as jobs land.
 
-**Detailed topic notes (2026-08-22):** [`transfer_experiment/`](transfer_experiment/README.md) ·
+**Detailed topic notes:** [`transfer_experiment/`](transfer_experiment/README.md) ·
 [`reproducibility/`](reproducibility/README.md) · [`author_code_defects/`](author_code_defects/README.md) ·
-[`ext_benchmarks/`](ext_benchmarks/README.md).
+[`ext_benchmarks/`](ext_benchmarks/README.md) · [`ablations/`](ablations/README.md) (Table 3 + Table 6) ·
+[`paper_specs.md`](paper_specs.md).
 
 **Legend:** ✅ reproduced · 🟡 partial · ⏳ in flight (job#) · ⬜ not started (infra ready) · 🚫 out of scope.
 
