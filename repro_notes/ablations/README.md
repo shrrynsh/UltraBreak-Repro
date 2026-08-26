@@ -34,17 +34,24 @@ that, *quantifies* which contributes most.
 
 ## 2. Table 6 — TV-weight sweep (transforms ON, vary only TV)
 
-| TV weight | SafeBench | note |
+| TV weight | SafeBench | AdvBench |
 |---|---|---|
-| 0.2 (B16a, job 1066) | 40.00% | |
-| **0.5 (= 809)** | **83.49%** | our reproduced baseline |
-| 1.0 (B16b, job 1074) | ⏳ pending | still training at time of writing |
+| 0.2 (B16a, job 1066) | 40.00% | 1.54% |
+| **0.5 (= 809, peak)** | **83.49%** | **39.04%** |
+| 1.0 (B16b, job 1074) | 56.51% | 30.38% |
 
-**This currently CONTRADICTS the paper.** The paper claims the TV peak is at
-**0.2**, but we find **0.5 is far better than 0.2** (83.5 vs 40.0). This is the direct
-test of [[DISCREPANCIES#D10]], and so far it **refutes the claimed 0.2 optimum**. The
-TV=1.0 point (pending) will show whether the curve keeps rising past 0.5 or turns
-over — needed to state the true peak.
+**The sweep is now complete, and it CONTRADICTS the paper's claimed peak.** The curve
+**rises 0.2 → 0.5 then falls 0.5 → 1.0**, so there is a clear **interior optimum at
+TV=0.5**, not at 0.2 as the paper claims:
+
+```
+SafeBench ASR vs TV:   0.2 → 40.0   |   0.5 → 83.5 (peak)   |   1.0 → 56.5
+```
+
+This is the direct test of [[DISCREPANCIES#D10]]. The paper's specific claim (peak at
+0.2) is **refuted** — TV is genuinely important and has an interior optimum, but it
+sits at **0.5** (our default). AdvBench tells the same story (peak 0.5: 39.0%, vs 1.5%
+at 0.2 and 30.4% at 1.0). Both benchmarks agree: **0.5 > 1.0 > 0.2.**
 
 (Note: B12's "no constraints" row is TV=0 **and** transforms off, so it is *not* a
 clean TV=0 point for this sweep — it drops both knobs at once.)
@@ -62,6 +69,7 @@ Every ablation lands at **1–16% AdvBench**; only the full 809 reaches **39%**.
 | token | 1.15% |
 | no-constraints | 2.12% |
 | TV=0.2 | 1.54% |
+| TV=1.0 | 30.38% |
 
 So the AdvBench under-reproduction flagged throughout this study is **not specific to
 any one ablation** — it is a general property of retraining on SafeBench-Tiny. The
@@ -75,8 +83,8 @@ trained to the full 3000 steps. This reinforces the reproducibility finding
 
 - **Table 3 reproduces and ranks the components:** attention-weighting is decisive,
   constraints are major, semantic-vs-CE is secondary.
-- **Table 6 so far contradicts the paper:** TV=0.5 ≫ TV=0.2, refuting the claimed 0.2
-  peak (pending the TV=1.0 point).
+- **Table 6 contradicts the paper (sweep complete):** the TV optimum is an interior
+  **0.5** (83.5%), not 0.2 (40.0%); it falls again to 56.5% at 1.0. Ordering 0.5 > 1.0 > 0.2.
 - **AdvBench stays weak across every ablation** — the reproduction gap lives on
   AdvBench, not in any single component.
 
