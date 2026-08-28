@@ -110,6 +110,25 @@ and Kimi barely moves on SafeBench.
 
 ---
 
+## 4b. MM-SafetyBench transfer of our retrain (A4-MM, job 1164)
+
+The 809 patch (our best retrain) transferred to MM-SafetyBench-520 × the targets
+(v3), next to the authors' image on the same benchmark (job 994):
+
+| Target | 809 retrain | authors' image |
+|---|---|---|
+| LLaVA-1.6 | **75.19%** | 74.62% |
+| Qwen-VL-Chat | 50.77% | 55.96% |
+| Qwen2.5-VL | 39.62% | 48.08% |
+| Qwen2-VL (WB) | 34.04% | 37.31% |
+| Kimi-VL | 31.35% | 54.42% |
+| GLM-4.1V | 28.65% | 38.08% |
+
+**Consistent with the generalization story:** our retrain matches the authors' image
+on LLaVA (75.2 ≈ 74.6) but trails on Kimi/Qwen2.5/GLM — the same "809 is a decent but
+weaker generalizer" pattern seen in [[../ext_benchmarks/README]]. So the retrain does
+carry to a third benchmark it never trained on, just below the released artifact.
+
 ## 5. How it was produced (for reproducibility)
 
 - **Surrogate (white-box):** Qwen/Qwen2-VL-7B-Instruct.

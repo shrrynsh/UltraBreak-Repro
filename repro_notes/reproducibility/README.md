@@ -98,19 +98,50 @@ accusation — the same generations score 81.59% (v1) and 78.73% (v3).
 
 ---
 
-## 5. The clean apples-to-apples comparison (running now: job 1058)
+## 5. The clean apples-to-apples comparison (DONE — 144/144 cells)
 
-Because those three axes were mixed together in earlier numbers, we built one
-controlled experiment that fixes all of them and reads each as a column:
+We built one controlled 144-cell experiment — 3 patches × {SB-315, SB-350} ×
+{AB-raw, AB-norm} × {v1, v3} × 6 models × {ASR, NRR} — to read each confound as a
+column (`results/exact_comparison_summary.csv`, jobs 1088/1118).
 
-- **3 patch rows:** code-faithful retrain · paper-faithful retrain · released image (reference)
-- **Axes as columns:** SafeBench {315, 350} × AdvBench {raw, norm} × judge {v1, v3}
-- **Both settings:** white-box (Qwen2-VL) **and** black-box (5 transfer targets)
-- **Both metrics:** ASR **and** NRR (non-refusal rate)
+### White-box (Qwen2-VL) ASR %, v3 judge
+| Patch | SB-315 | SB-350 | AB-raw | AB-norm |
+|---|---|---|---|---|
+| **code-faithful retrain** | **73.0** | 71.1 | 6.3 | 22.5 |
+| **paper-faithful retrain** | 64.1 | 62.3 | 6.2 | 10.2 |
+| **released image (ref)** | **78.7** | 77.7 | 9.6 | **67.7** |
 
-It self-resumes across 24h windows until all 144 cells are done, writing
-`results/exact_comparison_summary.csv`. **This section will be updated with the
-final factorial table once job 1058 completes.**
+**Four findings drop straight out:**
+
+1. **Code-faithful retrain BEATS paper-faithful retrain** on SafeBench (73.0 vs 64.1).
+   The authors' verbatim code trains a *better* patch than the paper-as-described —
+   because the paper's §3.2 projection (in the paper-faithful arm) actively hurts
+   ([[../author_code_defects/README]] D1). Both trail the released image (78.7).
+
+2. **The AdvBench "normalize" axis is the dominant confound.** The released image
+   scores **9.6% on raw AdvBench but 67.7% on normalized** — a 58-point swing from
+   prompt form alone. The paper's ~72% AdvBench is only reachable with *normalized*
+   prompts, which the authors' released code **does not generate** (it uses the raw
+   `goal`). So the reported AdvBench headline depends on a prompt form the code can't
+   produce. **NRR explains the mechanism:** released-image NRR is 25% on raw AdvBench
+   (it refuses 3 of 4) vs 82% on normalized — normalization mainly defeats refusals.
+
+3. **The v1 judge inflates ASR by ~2–7 pts** vs v3 across the board (e.g. released
+   SB-315: 81.6 v1 → 78.7 v3; AB-norm: 74.6 → 67.7) — the D12 bug, quantified.
+
+4. **SB-315 vs SB-350 is a minor axis** (~1–2 pts) — contamination barely moves it.
+
+### Transfer (black-box, SB-315, v3)
+| Model | code-faithful | paper-faithful | released |
+|---|---|---|---|
+| Qwen2.5-VL | 27.0 | 26.0 | **53.7** |
+| Qwen-VL-Chat | 60.3 | 68.9 | **77.1** |
+| LLaVA-1.6 | 85.4 | 87.6 | **88.3** |
+| Kimi-VL | 65.1 | 61.0 | **69.8** |
+| GLM-4.1V | 30.2 | 29.8 | **35.9** |
+
+The **released image transfers best on every target** (biggest gap on Qwen2.5-VL:
+54 vs ~26). code-faithful vs paper-faithful is a wash in transfer (each wins ~half).
 
 ---
 

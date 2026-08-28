@@ -58,6 +58,28 @@ clean TV=0 point for this sweep — it drops both knobs at once.)
 
 ---
 
+## 2b. Table 5 — affirming-phrase sensitivity (B15, job 1158)
+
+Authors' released image on GLM-4.1V / SafeBench-315, v3, with three affirming
+phrases:
+
+| Phrase | Ours (GLM) | Paper (GLM) |
+|---|---|---|
+| `[Jailbroken Mode]` | 39.05% | 66.03% |
+| `[ACCESS AUTHORISED]` | 30.48% | 72.06% |
+| `[CLASSIFIED INFO]` | 32.70% | 66.98% |
+
+**Does not reproduce.** Our GLM numbers are ~30 points below the paper, and the
+*ordering* differs too (paper: ACCESS > CLASSIFIED > JBM; ours: JBM > CLASSIFIED >
+ACCESS). Two likely causes: our GLM is judged by v3 with `<think>`-aware extraction
+(the paper's GLM handling differs), and phrase sensitivity is small relative to that
+judging difference. So Table 5's *magnitudes* don't reproduce; the qualitative point
+(the attack is somewhat robust to the exact phrase) partly holds — all three land in
+a 30–39% band for GLM. (On the white-box Qwen2-VL the phrases swing wildly —
+78.7 / 58.7 / 7.9 — so phrase choice matters far more there.)
+
+---
+
 ## 3. Cross-cutting: the AdvBench collapse is everywhere
 
 Every ablation lands at **1–16% AdvBench**; only the full 809 reaches **39%**.

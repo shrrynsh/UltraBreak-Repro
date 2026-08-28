@@ -6,8 +6,13 @@ and [`FINDINGS.md`](FINDINGS.md) (the reproduction narrative). Update the status
 
 **Detailed topic notes:** [`transfer_experiment/`](transfer_experiment/README.md) ·
 [`reproducibility/`](reproducibility/README.md) · [`author_code_defects/`](author_code_defects/README.md) ·
-[`ext_benchmarks/`](ext_benchmarks/README.md) · [`ablations/`](ablations/README.md) (Table 3 + Table 6) ·
-[`paper_specs.md`](paper_specs.md).
+[`ext_benchmarks/`](ext_benchmarks/README.md) · [`ablations/`](ablations/README.md) (Table 3 + 5 + 6) ·
+[`analysis_figures/`](analysis_figures/README.md) (A10/C2a/C4/C6) · [`paper_specs.md`](paper_specs.md).
+
+**COMPLETE as of 2026-08-28:** the whole program finished. Exact comparison (144/144),
+pipeline2 (B15 ✅, A4-MM ✅, **C2b ❌ failed on the LLaVA-adapter no-return bug =
+[[author_code_defects]] #2**), pipeline3 (A10 ✅, C6 ✅, C4 ✅, C2a ✅). Analyses folded into
+the topic notes. Queue empty. Remaining backlog: A5 baselines, D-sr scorer, C2b (needs the LLaVA fix).
 
 **Legend:** ✅ reproduced · 🟡 partial · ⏳ in flight (job#) · ⬜ not started (infra ready) · 🚫 out of scope.
 
