@@ -394,6 +394,82 @@ def main(args):
    
     
 
+    # ---- Closed-source API models (Table 1 "Combined Subset") ----------------
+    # Built for the reproduction; require `pip install openai google-genai
+    # anthropic` and the provider keys (OPENAI_API_KEY / GOOGLE_API_KEY /
+    # ANTHROPIC_API_KEY). Per the paper, run these ONLY on the authorised,
+    # less-extreme SafeBench subset to respect provider usage policies. Each API
+    # call is wrapped so a single failure records an error and continues.
+    elif model_name == "gpt-4.1-nano":
+        import base64
+        from openai import OpenAI
+        client = OpenAI()
+        for index, (image_path, prompt) in enumerate(zip(batch_image_path, batch_query_text)):
+            content = [{"type": "text", "text": prompt}]
+            if image_path:
+                with open(image_path, "rb") as f:
+                    b64 = base64.b64encode(f.read()).decode("utf-8")
+                content.append({"type": "image_url",
+                                "image_url": {"url": f"data:image/png;base64,{b64}"}})
+            try:
+                r = client.chat.completions.create(
+                    model="gpt-4.1-nano",
+                    messages=[{"role": "user", "content": content}],
+                    max_tokens=512)
+                response = r.choices[0].message.content
+            except Exception as e:
+                response = f"[API ERROR] {e}"
+            batch_response[index] = response
+            print(response)
+        query_df["response"] = batch_response
+        query_df.to_csv(f"{save_path}/{attack_config}/{model_name}.csv")
+
+    elif model_name == "gemini-2.5-flash-lite":
+        from google import genai
+        from google.genai import types
+        client = genai.Client()  # GEMINI_API_KEY or GOOGLE_API_KEY
+        for index, (image_path, prompt) in enumerate(zip(batch_image_path, batch_query_text)):
+            parts = [prompt]
+            if image_path:
+                with open(image_path, "rb") as f:
+                    img_bytes = f.read()
+                parts = [types.Part.from_bytes(data=img_bytes, mime_type="image/png"), prompt]
+            try:
+                r = client.models.generate_content(model="gemini-2.5-flash-lite", contents=parts)
+                response = r.text
+            except Exception as e:
+                response = f"[API ERROR] {e}"
+            batch_response[index] = response
+            print(response)
+        query_df["response"] = batch_response
+        query_df.to_csv(f"{save_path}/{attack_config}/{model_name}.csv")
+
+    elif model_name == "claude-3-haiku":
+        import base64
+        import anthropic
+        client = anthropic.Anthropic()  # ANTHROPIC_API_KEY
+        for index, (image_path, prompt) in enumerate(zip(batch_image_path, batch_query_text)):
+            content = [{"type": "text", "text": prompt}]
+            if image_path:
+                with open(image_path, "rb") as f:
+                    b64 = base64.b64encode(f.read()).decode("utf-8")
+                content = [{"type": "image",
+                            "source": {"type": "base64", "media_type": "image/png", "data": b64}},
+                           {"type": "text", "text": prompt}]
+            try:
+                r = client.messages.create(
+                    model="claude-3-haiku-20240307",
+                    max_tokens=512,
+                    messages=[{"role": "user", "content": content}])
+                response = r.content[0].text
+            except Exception as e:
+                response = f"[API ERROR] {e}"
+            batch_response[index] = response
+            print(response)
+        query_df["response"] = batch_response
+        query_df.to_csv(f"{save_path}/{attack_config}/{model_name}.csv")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_name", type=str, default='Qwen/Qwen2.5-VL-7B-Instruct')

@@ -231,3 +231,8 @@ AGENTS.md
 /attack_configs/glm_smoke.csv
 /results/glm_smoke/
 
+
+# External baseline repos (cloned for Table 1; our adapters live beside them tracked)
+/baselines/figstep/
+/baselines/vajm/
+/baselines/umk/
