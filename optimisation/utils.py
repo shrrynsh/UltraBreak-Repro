@@ -284,9 +284,9 @@ def semantic_similarity_loss(logits, labels, embedding_matrix, weights = None, m
             attn_scores = torch.bmm(pred_norm, tgt_norm.transpose(1, 2))  # dot-product sim
             attn_scores = attn_scores / tau  # apply temperature
             
-            # Make a causal mask: shape [T, T], upper triangular = True
+            # Mask: keep j >= t (FUTURE target tokens), per the paper e_t^att = sum_{j>=t} w_{t,j} e_j
             T = labels.size(1)
-            causal_mask = torch.triu(torch.ones((T, T), device=labels.device)).bool()  # lower triangle
+            causal_mask = torch.triu(torch.ones((T, T), device=labels.device)).bool()  # triu => j >= t (future-inclusive), matches the paper
             # Expand to batch: [B, T, T]
             causal_mask = causal_mask.unsqueeze(0).expand(labels.size(0), -1, -1)
             

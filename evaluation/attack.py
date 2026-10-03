@@ -252,12 +252,12 @@ def main(args):
             inputs.pop("token_type_ids", None)
 
             # Generate output
-            outputs = model.generate(**inputs, max_new_tokens=512)
+            outputs = model.generate(**inputs, max_new_tokens=2048)
 
             # Decode only new tokens after input length
             response = processor.decode(
                 outputs[0][inputs["input_ids"].shape[1]:],
-                skip_special_tokens=False
+                skip_special_tokens=True
             )
 
             batch_response[index] = response

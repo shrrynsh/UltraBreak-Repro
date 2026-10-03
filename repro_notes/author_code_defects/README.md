@@ -54,8 +54,8 @@ more. Ranked by how much they affect results:
 | 1 | **Judge reads prompt back in** (= D12) | `evaluate.py:30` | Inflates ASR for the main Qwen models. **Confirmed against their own test CSV.** |
 | 2 | **LLaVA adapter has no `return`** | `llava16_adapter.py:71` | `process_target` returns `None`, so **any run that includes the LLaVA surrogate crashes immediately** on unpack. |
 | 3 | **General judge is inverted** | `general_judge.py:68` | Returns "success" for **any** output that isn't exactly the token `no`. "No, this is a refusal." counts as a success. **Systematically inflates ASR.** |
-| 4 | **Causal mask flipped** | `utils.py:210` | The core semantic loss uses `torch.triu` (future tokens) where the comment says lower-triangle (past tokens). Each prediction is aligned to the **wrong** target positions. |
-| 5 | **TV/L2 penalties counted N times** | `optimise.py:129` | The regularizers are added inside the per-row loop, so their strength **secretly scales with dataset size** — the optimiser minimises a different objective than the one printed. |
+| 4 | ~~Causal mask flipped~~ **RETRACTED** | `utils.py:289` | **Not a defect.** The paper's own formula is `e_t^att = \sum_{j>=t} w_{t,j} e_j` — *future* tokens — and `torch.triu` gives exactly `j >= t`. The code is correct; only the inline comment said "lower triangle". Comment fixed 2026-10-03. |
+| 5 | **TV/L2 counted N times** — *downgraded* | `optimise.py:129` | Not results-changing. Accumulating TV/L2 once per row makes the gradient `N·(mean_text + tv_w·tv)` — i.e. the intended **mean-based** objective up to a global factor N, which Adam's per-parameter normalisation largely absorbs. What *is* wrong is the printed `total_loss` (mean-scaled while the gradient is N×) and recomputing tv/l2 per row (wasted compute). |
 | 6 | **Loss log off-by-one / empty** | `optimise.py:156` | `losses.csv` is written before the current epoch is recorded — empty at epoch 0, always up to 20 epochs stale. |
 | 7 | **Hardcoded `device='cuda'`** | `utils.py:134` | The positional-encoding tensor is forced to CUDA, so the default loss **crashes on CPU/MPS** even though the code tries to select those devices. |
 | 8 | **Refusal check on raw text** | `evaluate.py:87` | Refusal/NRR is computed over the contaminated response text (same root cause as D12), so NRR is also unreliable. |
@@ -75,6 +75,37 @@ more. Ranked by how much they affect results:
 | Semantic loss as described | #4, #5 | The implemented objective differs from the described one (flipped mask, size-scaled penalties). |
 
 ---
+
+---
+
+## Corrections and a new defect (2026-10-03)
+
+A direct read of our own training/optimisation path corrected two items relayed from the
+upstream review, and found a defect of **ours** that does affect results.
+
+**Retracted / downgraded** (see rows 4 and 5 above): the "flipped causal mask" is correct per the
+paper's `\sum_{j>=t}` formula, and the N× TV/L2 accumulation is equivalent to the intended
+mean-based objective under Adam. Neither changes any trained patch. The training path otherwise
+reviews clean (patch CLIP-normalisation matches the processor; `labels` is pre-sliced so the
+`T = labels.size(1)` reassignment is a harmless no-op).
+
+**NEW — D14: GLM generation truncated by a uniform token budget (ours, results-affecting).**
+Every model branch used `max_new_tokens=512`. That is ample for the five non-reasoning models but
+starves **GLM-4.1V-Thinking**, which spends the budget inside `<think>` and never emits an answer.
+Measured truncation (no `</think>`): **98.7% on FigStep**, ~50% on No-Attack SafeBench, ~40% on
+MM-SafetyBench, 31–41% on the transfer SafeBench arms, 10–25% on AdvBench.
+
+Consequence: v1 scores the *reasoning trace* (inflates, e.g. FigStep/GLM 95.56%) while v3 finds no
+answer and scores it a failure but keeps the row in the denominator (deflates, 0.95%). **Neither is a
+valid measurement.** ASR over valid rows only differs sharply from ASR over all rows, e.g.
+No-Attack SafeBench 12.7 -> 1.3, MM-safety pf 31.7 -> 14.5.
+
+GLM also decoded with `skip_special_tokens=False` while all five others used `True` (the fork's
+version of upstream finding #9), compounding it.
+
+**Fixed 2026-10-03:** GLM branch raised to `max_new_tokens=2048` and aligned to
+`skip_special_tokens=True`. **All GLM cells across transfer, MM-SafetyBench, ablations, FigStep and
+the No-Attack baseline must be re-run before any GLM number is quoted.**
 
 ## 4. Severity summary
 
