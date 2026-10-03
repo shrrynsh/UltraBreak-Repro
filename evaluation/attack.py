@@ -401,7 +401,6 @@ def main(args):
     # less-extreme SafeBench subset to respect provider usage policies. Each API
     # call is wrapped so a single failure records an error and continues.
     elif model_name == "gpt-4.1-nano":
-        import base64
         from openai import OpenAI
         client = OpenAI()
         for index, (image_path, prompt) in enumerate(zip(batch_image_path, batch_query_text)):
@@ -445,7 +444,6 @@ def main(args):
         query_df.to_csv(f"{save_path}/{attack_config}/{model_name}.csv")
 
     elif model_name == "claude-3-haiku":
-        import base64
         import anthropic
         client = anthropic.Anthropic()  # ANTHROPIC_API_KEY
         for index, (image_path, prompt) in enumerate(zip(batch_image_path, batch_query_text)):
