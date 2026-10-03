@@ -31,3 +31,30 @@ image optimisation and where SafeBench-Tiny plugs in.
 - `figstep/` — github.com/ThuCCSLab/FigStep (released typography images)
 - `vajm/` — github.com/Unispac/Visual-Adversarial-Examples-Jailbreak-Large-Language-Models
 - `umk/` — github.com/roywang021/UMK
+
+## Environment isolation (STRICT - do not cross)
+
+Three environments, each scoped to one job. Mixing them would change numbers on tasks
+that are already measured, so nothing is ever re-run under a different env.
+
+| Env | Path | Versions | Scope |
+|---|---|---|---|
+| `minigpt4` (conda) | `~/.conda/envs/minigpt4` | torch 2.0.1+cu118, transformers 4.28.0 | **VAJM + UMK baselines ONLY** |
+| `repro` (venv) | `./repro` | torch 2.5.1+cu124, transformers 4.51.3 | all main repro: training, eval, judging |
+| `repro_glm` (venv) | `./repro_glm` | torch 2.5.1+cu124, transformers 5.15.0 | GLM-4.1V generation only |
+
+Rules:
+- Never run main-repro training/eval/judging under `minigpt4`.
+- Never change package versions inside `repro` / `repro_glm` - they produced every
+  existing number; a version change silently invalidates completed results.
+- Job scripts must call interpreters explicitly (`source repro/bin/activate`,
+  `repro_glm/bin/python`, `~/.conda/envs/minigpt4/bin/python`) - never a bare `python`,
+  so the shell's conda init cannot leak in.
+
+### Documented deviation in `minigpt4`
+`baselines/vajm/environment.yml` pins torch 1.12.1 / cudatoolkit 11.3, which does NOT
+support the RTX 6000 Ada (sm_89 needs CUDA >= 11.8). torch is bumped to **2.0.1+cu118**,
+the smallest version supporting Ada. All other deps are pinned exactly as the repo
+specifies. This is a deviation from the authors' stack and must be reported with the
+VAJM/UMK numbers - it should not change the attack math (PGD on pixels), but it is not a
+byte-exact replication.
