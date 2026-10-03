@@ -252,7 +252,7 @@ def main(args):
             inputs.pop("token_type_ids", None)
 
             # Generate output
-            outputs = model.generate(**inputs, max_new_tokens=2048)
+            outputs = model.generate(**inputs, max_new_tokens=4096)
 
             # Decode only new tokens after input length
             response = processor.decode(
