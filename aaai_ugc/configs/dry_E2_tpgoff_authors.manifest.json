@@ -1,0 +1,15 @@
+{
+  "experiment": "E2",
+  "variant": "safebench-native",
+  "image_condition": "authors",
+  "image_path": "outputs/ultrabreak.png",
+  "image_md5": "a1e8628de2ab5f4f6fb4fa94140d2eec",
+  "dataset": "safebench-315",
+  "tpg": false,
+  "phrase": "[Jailbroken Mode]",
+  "config": "dry_E2_tpgoff_authors",
+  "rows": 10,
+  "config_path": "aaai_ugc/configs/dry_E2_tpgoff_authors.csv",
+  "git_commit": "5879f3d",
+  "built_utc": "2026-10-04T16:47:48.722033+00:00"
+}

@@ -1,0 +1,15 @@
+{
+  "experiment": "E2",
+  "variant": "safebench-native",
+  "image_condition": "base",
+  "image_path": "images/white.jpeg",
+  "image_md5": "df09a28973f072fdbc3d7ad41d1b0247",
+  "dataset": "safebench-315",
+  "tpg": false,
+  "phrase": "[Jailbroken Mode]",
+  "config": "dry_E2_tpgoff_base",
+  "rows": 10,
+  "config_path": "aaai_ugc/configs/dry_E2_tpgoff_base.csv",
+  "git_commit": "5879f3d",
+  "built_utc": "2026-10-04T16:47:48.694029+00:00"
+}

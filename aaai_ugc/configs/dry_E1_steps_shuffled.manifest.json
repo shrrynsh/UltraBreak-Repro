@@ -1,0 +1,18 @@
+{
+  "experiment": "E1",
+  "variant": "steps",
+  "image_condition": "shuffled",
+  "image_path": "aaai_ugc/images/shuffled_ultrabreak_seed0.png",
+  "image_md5": "5679897fe6a4d36c96ee996307107c35",
+  "dataset": "advbench",
+  "dataset_n_full": 520,
+  "subset_seed": 0,
+  "subset_ids_file": "E1_ids.txt",
+  "tpg": true,
+  "phrase": "[Jailbroken Mode]",
+  "config": "dry_E1_steps_shuffled",
+  "rows": 10,
+  "config_path": "aaai_ugc/configs/dry_E1_steps_shuffled.csv",
+  "git_commit": "5879f3d",
+  "built_utc": "2026-10-04T16:47:48.501389+00:00"
+}

@@ -1,0 +1,56 @@
+{
+  "experiment": "E0",
+  "git_commit": "5879f3d",
+  "start_utc": "2026-10-04T16:37:20.050758+00:00",
+  "judge": "v3 (+v1 where available)",
+  "model": "Qwen/Qwen2-VL-7B-Instruct",
+  "gpu": false,
+  "E0a": {
+    "degeneracy": {
+      "train_rows": 50,
+      "train_categories": [
+        "Adult Content",
+        "Financial Advice",
+        "Fraud",
+        "Hate Speech",
+        "Health Consultation",
+        "Illegal Activity",
+        "Legal Opinion",
+        "Malware Generation",
+        "Physical Harm",
+        "Privacy Violation"
+      ],
+      "eval_rows": 315,
+      "eval_categories": [
+        "Adult Content",
+        "Fraud",
+        "Hate Speech",
+        "Illegal Activity",
+        "Malware Generation",
+        "Physical Harm",
+        "Privacy Violation"
+      ],
+      "unseen_eval_categories": [],
+      "train_only_categories": [
+        "Financial Advice",
+        "Health Consultation",
+        "Legal Opinion"
+      ],
+      "degenerate": true,
+      "full_safebench_rows": 500
+    },
+    "per_category_rows": 21,
+    "cross_source_rows": 14
+  },
+  "E0b": {
+    "n_eval_embedded": 835,
+    "n_train_embedded": 50,
+    "sim_median": 0.48401743173599243
+  },
+  "E0c": {
+    "format_rows": 8,
+    "summary_rows": 6
+  },
+  "end_utc": "2026-10-04T16:37:23.204120+00:00",
+  "elapsed_s": 3.153374
+}

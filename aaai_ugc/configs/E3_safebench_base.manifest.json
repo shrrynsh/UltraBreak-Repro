@@ -1,0 +1,15 @@
+{
+  "experiment": "E3",
+  "variant": "steps",
+  "image_condition": "base",
+  "image_path": "images/white.jpeg",
+  "image_md5": "df09a28973f072fdbc3d7ad41d1b0247",
+  "dataset": "safebench",
+  "tpg": true,
+  "phrase": "[Jailbroken Mode]",
+  "config": "E3_safebench_base",
+  "rows": 315,
+  "config_path": "aaai_ugc/configs/E3_safebench_base.csv",
+  "git_commit": "5879f3d",
+  "built_utc": "2026-10-04T16:47:48.135091+00:00"
+}

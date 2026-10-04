@@ -236,3 +236,6 @@ AGENTS.md
 /baselines/figstep/
 /baselines/vajm/
 /baselines/umk/
+
+# shift-study job bookkeeping (resume markers only; all results ARE tracked)
+/aaai_ugc/results/.markers/

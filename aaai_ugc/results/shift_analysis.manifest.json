@@ -1,0 +1,20 @@
+{
+  "git_commit": "5879f3d",
+  "model": "Qwen/Qwen2-VL-7B-Instruct",
+  "run_utc": "2026-10-04T16:41:34.353839+00:00",
+  "judges": [
+    "v3",
+    "v1"
+  ],
+  "E1": {
+    "status": "pending"
+  },
+  "E2": {
+    "status": "pending"
+  },
+  "E3": {
+    "status": "ok",
+    "cells": 5
+  },
+  "elapsed_s": 0.17101
+}

@@ -1,0 +1,18 @@
+{
+  "experiment": "E1",
+  "variant": "bare",
+  "image_condition": "authors",
+  "image_path": "outputs/ultrabreak.png",
+  "image_md5": "a1e8628de2ab5f4f6fb4fa94140d2eec",
+  "dataset": "advbench",
+  "dataset_n_full": 520,
+  "subset_seed": 0,
+  "subset_ids_file": "E1_ids.txt",
+  "tpg": true,
+  "phrase": "[Jailbroken Mode]",
+  "config": "dry_E1_bare_authors",
+  "rows": 10,
+  "config_path": "aaai_ugc/configs/dry_E1_bare_authors.csv",
+  "git_commit": "5879f3d",
+  "built_utc": "2026-10-04T16:47:48.448182+00:00"
+}

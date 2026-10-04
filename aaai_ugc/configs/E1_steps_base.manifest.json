@@ -1,0 +1,18 @@
+{
+  "experiment": "E1",
+  "variant": "steps",
+  "image_condition": "base",
+  "image_path": "images/white.jpeg",
+  "image_md5": "df09a28973f072fdbc3d7ad41d1b0247",
+  "dataset": "advbench",
+  "dataset_n_full": 520,
+  "subset_seed": 0,
+  "subset_ids_file": "E1_ids.txt",
+  "tpg": true,
+  "phrase": "[Jailbroken Mode]",
+  "config": "E1_steps_base",
+  "rows": 150,
+  "config_path": "aaai_ugc/configs/E1_steps_base.csv",
+  "git_commit": "5879f3d",
+  "built_utc": "2026-10-04T16:47:48.020150+00:00"
+}

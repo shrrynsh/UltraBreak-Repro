@@ -1,0 +1,18 @@
+{
+  "experiment": "E1",
+  "variant": "bare",
+  "image_condition": "p809",
+  "image_path": "outputs/full50_normfix_lr0p01_s3000/3000.png",
+  "image_md5": "f134a80673b7d59ae6eea307e459e4b5",
+  "dataset": "advbench",
+  "dataset_n_full": 520,
+  "subset_seed": 0,
+  "subset_ids_file": "E1_ids.txt",
+  "tpg": true,
+  "phrase": "[Jailbroken Mode]",
+  "config": "dry_E1_bare_p809",
+  "rows": 10,
+  "config_path": "aaai_ugc/configs/dry_E1_bare_p809.csv",
+  "git_commit": "5879f3d",
+  "built_utc": "2026-10-04T16:47:48.454258+00:00"
+}

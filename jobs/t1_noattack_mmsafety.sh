@@ -24,8 +24,28 @@ echo "$L start $(date) attempt $ATTEMPT/$MAX"
 cells(){ local d=0; for m in "${MODELS[@]}"; do
   [[ -f "results/${CFG}/${m}_harmbench.csv" ]] && d=$((d+1))
   [[ -f "results/${CFG}/${m}_harmbench_v3.csv" ]] && d=$((d+1)); done; echo $d; }
+
+# ── chain to the next stage ────────────────────────────────────────────────────
+# The cluster allows one running job, so the night's work is a chain: each stage
+# self-resumes until its own work is complete, then seeds the next stage once.
+# Guarded against double-seeding by checking the queue for the successor's name.
+chain_to(){   # script jobname
+  local script="$1" name="$2"
+  [[ -f "$script" ]] || { echo "$L chain: $script not found" >&2; return; }
+  if squeue -u "${USER:-$(id -un)}" -h -o "%j" 2>/dev/null | grep -qx "$name"; then
+    echo "$L chain: $name already queued/running - not seeding again"; return
+  fi
+  local n; n=$(sbatch --parsable "$script" 2>&1) \
+    && echo "$L CHAIN -> $script as job $n" \
+    || echo "$L chain submit FAILED: $n" >&2
+}
+
 SD=$(cells); echo "$L progress $SD/12"
-(( SD >= 12 )) && { echo "$L COMPLETE"; exit 0; }
+if (( SD >= 12 )); then
+  echo "$L COMPLETE"
+  chain_to jobs/glm_rerun.sh ub_glmre
+  exit 0
+fi
 RESUB=0
 resub(){ [[ $RESUB -eq 1 ]] && return; RESUB=1; local d; d=$(cells)
   (( d>=12 )) && { echo "$L COMPLETE"; return; }; (( ATTEMPT>=MAX )) && { echo "$L MAX"; return; }
@@ -73,5 +93,10 @@ for m in order:
     s=short[m]; v1=a(m,"_harmbench.csv"); v3=a(m,"_harmbench_v3.csv")
     print(f"{s:13s} {paper[s]:>7.1f} {(f'{v1:.1f}' if v1 is not None else '-'):>8s} {(f'{v3:.1f}' if v3 is not None else '-'):>8s}")
 PY
-resub end
+if (( $(cells) >= 12 )); then
+  echo "$L ALL 12 CELLS COMPLETE - handing the GPU to the GLM re-run"
+  chain_to jobs/glm_rerun.sh ub_glmre
+else
+  resub end
+fi
 echo "$L done $(date)"
