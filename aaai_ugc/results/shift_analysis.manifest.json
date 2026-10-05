@@ -1,7 +1,7 @@
 {
-  "git_commit": "c636fd5",
+  "git_commit": "adaae67",
   "model": "Qwen/Qwen2-VL-7B-Instruct",
-  "run_utc": "2026-10-04T19:43:07.590213+00:00",
+  "run_utc": "2026-10-05T16:19:29.607949+00:00",
   "judges": [
     "v3",
     "v1"
@@ -58,5 +58,5 @@
     "uplift_advbench": 64.23076923076924,
     "uplift_harmbench": 23.0
   },
-  "elapsed_s": 1.014268
+  "elapsed_s": 1.013712
 }
