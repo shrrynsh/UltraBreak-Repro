@@ -1,0 +1,22 @@
+{
+  "authors": {
+    "uplift_bare_pts": 5.333333333333333,
+    "uplift_steps_pts": 62.66666666666667,
+    "difference_pts": 57.333333333333336
+  },
+  "p809": {
+    "uplift_bare_pts": 0.6666666666666664,
+    "uplift_steps_pts": 31.333333333333336,
+    "difference_pts": 30.66666666666667
+  },
+  "shuffled": {
+    "uplift_bare_pts": 2.0,
+    "uplift_steps_pts": -1.3333333333333335,
+    "difference_pts": -3.3333333333333335
+  },
+  "text_only": {
+    "uplift_bare_pts": -2.666666666666667,
+    "uplift_steps_pts": -2.666666666666667,
+    "difference_pts": 0.0
+  }
+}

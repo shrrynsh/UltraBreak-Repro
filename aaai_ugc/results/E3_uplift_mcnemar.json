@@ -1,1 +1,23 @@
-{}
+{
+  "safebench": {
+    "uplift_pts": 45.714285714285715,
+    "mcnemar_b": 163,
+    "mcnemar_c": 19,
+    "mcnemar_p": 1.0006023521602821e-29,
+    "n_pairs": 315
+  },
+  "advbench": {
+    "uplift_pts": 64.23076923076924,
+    "mcnemar_b": 340,
+    "mcnemar_c": 6,
+    "mcnemar_p": 3.239913391567605e-92,
+    "n_pairs": 520
+  },
+  "harmbench": {
+    "uplift_pts": 23.0,
+    "mcnemar_b": 62,
+    "mcnemar_c": 16,
+    "mcnemar_p": 1.5129781377543385e-07,
+    "n_pairs": 200
+  }
+}

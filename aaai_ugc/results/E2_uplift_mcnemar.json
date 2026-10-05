@@ -1,0 +1,17 @@
+{
+  "tpg_on": {
+    "uplift_pts": 45.714285714285715,
+    "mcnemar_b": 162,
+    "mcnemar_c": 18,
+    "mcnemar_p": 3.7400797319443574e-30,
+    "n_pairs": 315
+  },
+  "tpg_off": {
+    "uplift_pts": 3.8095238095238098,
+    "mcnemar_b": 32,
+    "mcnemar_c": 20,
+    "mcnemar_p": 0.12634707581392135,
+    "n_pairs": 315
+  },
+  "uplift_off_minus_on_pts": -41.904761904761905
+}
