@@ -1,0 +1,17 @@
+{
+  "experiment": "E4b",
+  "variant": "safebench-native",
+  "image_condition": "base",
+  "image_path": "images/white.jpeg",
+  "image_md5": "df09a28973f072fdbc3d7ad41d1b0247",
+  "dataset": "safebench-315-sub150",
+  "subset_ids_file": "E4b_ids.txt",
+  "subset_n": 150,
+  "tpg": true,
+  "phrase": "[Jailbroken Mode]",
+  "config": "E4b_tpgon_base",
+  "rows": 150,
+  "config_path": "aaai_ugc/configs/E4b_tpgon_base.csv",
+  "git_commit": "d0c8eff",
+  "built_utc": "2026-10-05T16:32:13.498580+00:00"
+}

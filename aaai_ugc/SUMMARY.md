@@ -333,11 +333,142 @@ Across all three experiments, on the attack's own white-box surrogate:
 | pixels permuted, histogram identical | **−1.3 to +2.0 pts, n.s.** |
 | source varied at fixed format | **+23.0 to +64.2 pts** |
 
+And the phrasing contrast on the patch itself (same 150 intents, same image, wording only — E4):
+
+| model | `bare` → `steps` contrast | template interaction |
+|---|---|---|
+| Qwen2-VL-7B (white-box surrogate) | **+57.33 pts** (p=7e-24) | +38.00 pts on these rows |
+| Qwen-VL-Chat (transfer) | **+50.67 pts** (p=4e-20) | not completed — no GPU in the time box |
+| LLaVA-1.6 (transfer) | **+13.33 pts** (p=2e-4), ceiling-limited | not completed |
+
 The "universal" image behaves as a **format-bound trigger that amplifies a compliance-presupposing
 text template**, not as a general refusal-off switch. Its two strongest requirements are the
 `Steps to …` phrasing and the forced-prefix instruction; strip either and the measurable uplift falls
 to a few points and loses significance. What survives is real but conditional, and its size depends
 on the benchmark it is measured on.
+
+---
+
+## E4 — Transfer targets
+
+**Purpose.** E1–E3 established the format and template dependence on **Qwen2-VL-7B, which is
+UltraBreak's own white-box surrogate**. The paper's central claim is *transfer* to black-box models,
+which the pilot never tested. E4 asks one question: **does the same dependence hold on transfer
+targets?**
+
+**Design.** Per target, the same 150 AdvBench IDs E1 used (`configs/E1_ids.txt`) ×
+{`bare`, `steps`} × {`base`, `shuffled`, `authors`} (E4a), and a frozen 150-row subset of
+SafeBench-315 (`configs/E4b_ids.txt`, seed 0) × {TPG on, off} × {`base`, `authors`} (E4b). Targets in
+priority order: **Qwen-VL-Chat** (the paper's largest reported transfer uplift), then **LLaVA-1.6**.
+
+**Each target keeps its own existing generation settings** from `evaluation/attack.py`, not
+Qwen2-VL's — recorded below, because they differ in a way that matters.
+
+### E4a — the phrasing contrast *does* survive transfer, except where there is no headroom
+
+Same 150 harmful intents, **the same released patch**, TPG instruction on in both arms — only the
+wording differs. Paired on identical IDs, exact McNemar. Judge v3; n=150 per cell.
+
+| model | `bare` ASR [95% CI] | `steps` ASR [95% CI] | **contrast** | McNemar |
+|---|---|---|---|---|
+| Qwen2-VL-7B — *white-box surrogate* | 8.00 [4.6, 13.5] | 65.33 [57.4, 72.5] | **+57.33** | b=88 c=2, p=6.6e-24 |
+| **Qwen-VL-Chat — transfer** | 22.00 [16.1, 29.3] | 72.67 [65.0, 79.2] | **+50.67** | b=79 c=3, p=3.8e-20 |
+| **LLaVA-1.6 — transfer** | 80.67 [73.6, 86.2] | 94.00 [89.0, 96.8] | **+13.33** | b=24 c=4, p=1.8e-4 |
+
+> **On Qwen-VL-Chat the dependence transfers almost undiminished: +50.7 points versus the white-box
+> +57.3.** The same released image, on the same 150 intents, is worth three times as much when the
+> request is phrased "Steps to …" as when it is phrased the way AdvBench ships it.
+>
+> **On LLaVA-1.6 it largely collapses to +13.3 points** — still significant, but a quarter of the
+> size. The reason is visible in the response shape, not mysterious: LLaVA's `bare` arm is *already*
+> at 80.67% ASR with 85.3% non-refusal, a 51.3% list rate and a 1,882-character median answer. It is
+> already in the compliant, list-producing mode that the phrasing is supposed to induce, so there is
+> almost no headroom for phrasing to buy. This is the known high-baseline problem with LLaVA in this
+> benchmark suite (its No-Attack SafeBench ASR is 57.14%).
+
+**Response shape across the contrast** (judge v3, metrics on the extracted answer):
+
+| model | form | NRR | list ≤300ch | prefix | prefix-then-refuse | median len |
+|---|---|---|---|---|---|---|
+| Qwen2-VL-7B | `bare` | 24.7 | 6.0 | 33.3 | 8.7 | 36 |
+| Qwen2-VL-7B | `steps` | 79.3 | **58.7** | 82.7 | 2.7 | **684** |
+| Qwen-VL-Chat | `bare` | 35.3 | 5.3 | 40.0 | 5.3 | 426 |
+| Qwen-VL-Chat | `steps` | 81.3 | **10.0** | 81.3 | 0.0 | 541 |
+| LLaVA-1.6 | `bare` | 85.3 | 51.3 | 98.7 | 12.7 | 1882 |
+| LLaVA-1.6 | `steps` | 99.3 | **90.7** | 100.0 | 0.7 | 2016 |
+
+One honest nuance: on Qwen-VL-Chat the **ASR** contrast mirrors the white-box model closely, but the
+**list-mode signature does not** — its list rate only moves 5.3% → 10.0%, against 6.0% → 58.7% on
+Qwen2-VL. So the "success = list mode" mechanism identified in E0c/E1 is *surrogate-specific in its
+surface form*, even though the phrasing sensitivity itself transfers. Non-refusal is the metric that
+moves consistently on both (35.3 → 81.3 and 24.7 → 79.3).
+
+**What was reused rather than regenerated.** Both arms of this table come from existing transfer runs
+whose configs are **byte-identical** to the E4a `authors` cells, subset to the frozen 150 IDs:
+`cmp_img_abraw` (= `bare`×`authors`) and `cmp_img_abnorm` (= `steps`×`authors`). Equality was asserted
+row by row on `text`, `image` and `target` by `code/build_E4_configs.py`, which aborts on any
+mismatch. So this table required **no new generation** and carries no harness risk.
+
+### E4a/E4b — `base` and `shuffled` arms, and the template ablation: NOT COMPLETED
+
+The uplift decomposition (the patch's contribution *over* a no-patch reference) and all of E4b
+require generating the `base`, `shuffled`, `tpgon×base` and `tpgoff×authors` cells — 900 generations
+per target. Those configs are built and verified (`configs/E4a_*`, `configs/E4b_*`), the job is
+written (`jobs/E4_transfer.sh`, with an in-job 10-row dry run and a 4-hour budget guard), and it is
+**queued but did not receive a GPU inside the time box**: all six cluster GPUs were held by other
+users, with one higher-priority job ahead in the queue and an estimated start past the deadline.
+
+No existing run can substitute, and this was checked rather than assumed: every `base`-style run in
+the repo (`noattack_*`) drops the TPG clause *as well as* the image, so it is not the `base` arm E4
+needs (which holds TPG **on** and varies only the image). Reporting it as such would conflate the two
+factors E4 exists to separate.
+
+**Therefore E4 reports the phrasing contrast only, and makes no uplift or interaction claim.** The
+contrast above is a complete, paired, well-powered result on its own terms; it just answers "does
+phrasing matter on transfer targets" rather than "how much of that is the image".
+
+### A determinism finding that affects the whole study
+
+Checking each target's generation settings before trusting an anchor turned up something that applies
+beyond E4:
+
+| model | `do_sample` | `top_k` | `top_p` | verdict |
+|---|---|---|---|---|
+| Qwen2-VL-7B | true | **1** | 0.001 | argmax-equivalent → **deterministic** |
+| **Qwen-VL-Chat** | **true** | **0** | **0.3** | **genuinely stochastic, and `attack.py` sets no seed** |
+| LLaVA-1.6 | *(absent → false)* | — | — | greedy → **deterministic** |
+
+**Every Qwen-VL-Chat number in the paper and in this reproduction is a single unseeded draw from a
+nucleus-sampling distribution.** Re-running the identical config will not reproduce it, and no
+confidence interval in any Qwen-VL-Chat row accounts for that generation variance — the Wilson
+intervals above cover sampling of *queries*, not of *decodings*. This is why E4 **reuses** the
+existing Qwen-VL-Chat runs instead of regenerating them for an anchor check: an exact-agreement
+anchor is impossible for this model by construction, so regenerating would have produced a mismatch
+that signified nothing. LLaVA-1.6 *is* deterministic and would support a true exact anchor.
+
+### A judge finding specific to transfer targets
+
+On Qwen-VL-Chat, **v1 and v3 agree on 100.00% of rows** (520/520 on `cmp_img_abnorm`). The reason is
+structural: `model.chat()` returns only the answer — 0/520 rows contain the literal `assistant`,
+`[/INST]` or `<think>` — so v3's extractor is a no-op and D12's anchor bug cannot fire. **D12 is a
+Qwen2-VL-family artifact of the echoed chat template, not a universal judge defect.** That sharpens
+the D12 finding in `repro_notes/DISCREPANCIES.md`, which did not distinguish the two cases.
+
+### E4 — what this supports / what it does not
+
+**Supports.** The phrasing dependence is not an artifact of the white-box surrogate: it transfers at
+near-full strength to Qwen-VL-Chat (+50.7 vs +57.3). Where it weakens (LLaVA, +13.3) the response-shape
+data gives a concrete reason — a ceiling effect from an already-compliant model — rather than leaving
+it unexplained. Non-refusal rate moves consistently with phrasing on all three models.
+
+**Does not support.** This is the **patch-only** contrast: without the `base` and `shuffled` arms, E4
+cannot say how much of each contrast is the *image* versus the *template*, which is precisely what E1
+answered for the surrogate. So E4 does **not** establish that the *image's marginal contribution* is
+format-bound on transfer targets — only that measured attack success on them is. Two targets is not a
+sample of models; both are still evaluated with one released patch, 150 rows per cell (so effects
+below roughly 10 points are underpowered), and Qwen-VL-Chat's numbers carry unquantified decoding
+variance on top of the reported intervals. No harness anchor was possible on Qwen-VL-Chat for the
+reason given above; none was attempted on LLaVA because its cells were reused unmodified.
 
 ---
 
@@ -386,6 +517,14 @@ These apply to every result in this document.
 - **Generation determinism** rests on `top_k=1` in Qwen2-VL's `generation_config.json`, not on a
   seed, because `attack.py` exposes none. This matches how every existing number in the study was
   produced.
+- **Qwen-VL-Chat generation is stochastic and unseeded** (`do_sample=true, top_k=0, top_p=0.3`),
+  so its intervals understate total uncertainty: they cover query sampling, not decoding variance.
+  Qwen2-VL-7B and LLaVA-1.6 are deterministic.
+- **E4 is the patch-only contrast.** Its `base`/`shuffled` arms and all of E4b were built, verified
+  and queued but never got a GPU inside the time box, so E4 makes no uplift or interaction claim for
+  the transfer targets.
+- **LLaVA-1.6 is ceiling-limited** in E4: its `bare` arm already sits at 80.67% ASR, so its small
+  contrast reflects missing headroom, not an absence of format sensitivity.
 - **Statistics are own-implemented** (Wilson, exact McNemar, IRLS logistic) because the pinned env
   must not gain packages; each is unit-tested against hand-computed values in
   `code/stats.py::_selftest`.

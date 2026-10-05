@@ -1,0 +1,17 @@
+{
+  "git_commit": "d0c8eff",
+  "run_utc": "2026-10-05T16:34:57.128977+00:00",
+  "adv_ids_file": "E1_ids.txt",
+  "sb_ids_file": "E4b_ids.txt",
+  "n_per_cell": 150,
+  "targets": {
+    "qwen2vl": {
+      "uplift_bare": 5.333333333333333,
+      "uplift_steps": 62.66666666666667,
+      "key_contrast_pts": 57.333333333333336,
+      "uplift_tpg_on": 42.666666666666664,
+      "uplift_tpg_off": 4.666666666666666,
+      "template_interaction_pts": 38.0
+    }
+  }
+}
