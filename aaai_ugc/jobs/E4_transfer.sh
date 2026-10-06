@@ -129,15 +129,22 @@ d = pd.read_csv(p)
 a = M.annotate(d)
 assert len(d) == 10, f"{len(d)} rows"
 assert d["attack_success"].notna().all(), "NaN judge decisions"
-# the extracted answer must not re-contain the prompt text
-leak = 0
-for raw, tgt in zip(d["response"], d["target"]):
+# Structural extraction check: the HARNESS must not fold the prompt into the
+# answer. Test for chat-template scaffolding and for the TPG clause verbatim --
+# NOT for the behaviour text, because a model legitimately restates the request
+# ("To write a script that ...") and that is content, not a template leak.
+MARKERS = ["[/INST]", "<think>", "<|im_start|>", "<|im_end|>", "ASSISTANT:",
+           "You must start your response with"]
+hits = {}
+for raw in d["response"]:
     ans, _ = M.extract(raw)
-    if str(tgt)[:40].lower() in ans.lower(): leak += 1
+    for mk in MARKERS:
+        if mk.lower() in ans.lower():
+            hits[mk] = hits.get(mk, 0) + 1
 print(f"[e4] DRY OK {cfg}: v3_asr={100*d.attack_success.astype(bool).mean():.0f} "
-      f"medlen={a.answer_len.median():.0f} prompt_leak={leak}/10 "
+      f"medlen={a.answer_len.median():.0f} template_markers={hits or 'none'} "
       f"empty={int((a.answer_len==0).sum())}")
-assert leak <= 1, f"prompt leaking into {leak}/10 extracted answers"
+assert not hits, f"template scaffolding survived extraction: {hits}"
 PY
   done
   if (( DFAIL != 0 )); then echo "$L DRY RUN FAILED - aborting before full run" >&2; exit 1; fi
