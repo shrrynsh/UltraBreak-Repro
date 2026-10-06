@@ -1,0 +1,17 @@
+{
+  "experiment": "E4b",
+  "variant": "safebench-native",
+  "image_condition": "authors",
+  "image_path": "outputs/ultrabreak.png",
+  "image_md5": "a1e8628de2ab5f4f6fb4fa94140d2eec",
+  "dataset": "safebench-315-sub150",
+  "subset_ids_file": "E4b_ids.txt",
+  "subset_n": 150,
+  "tpg": false,
+  "phrase": "[Jailbroken Mode]",
+  "config": "dry_E4b_tpgoff_authors",
+  "rows": 10,
+  "config_path": "aaai_ugc/configs/dry_E4b_tpgoff_authors.csv",
+  "git_commit": "44d1c82",
+  "built_utc": "2026-10-05T18:31:41.208828+00:00"
+}

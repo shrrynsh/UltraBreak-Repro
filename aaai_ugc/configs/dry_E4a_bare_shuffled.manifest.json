@@ -1,0 +1,17 @@
+{
+  "experiment": "E4a",
+  "variant": "bare",
+  "image_condition": "shuffled",
+  "image_path": "aaai_ugc/images/shuffled_ultrabreak_seed0.png",
+  "image_md5": "5679897fe6a4d36c96ee996307107c35",
+  "dataset": "advbench",
+  "subset_ids_file": "E1_ids.txt",
+  "subset_n": 150,
+  "tpg": true,
+  "phrase": "[Jailbroken Mode]",
+  "config": "dry_E4a_bare_shuffled",
+  "rows": 10,
+  "config_path": "aaai_ugc/configs/dry_E4a_bare_shuffled.csv",
+  "git_commit": "44d1c82",
+  "built_utc": "2026-10-05T18:31:41.169179+00:00"
+}

@@ -1,0 +1,17 @@
+{
+  "experiment": "E4a",
+  "variant": "steps",
+  "image_condition": "base",
+  "image_path": "images/white.jpeg",
+  "image_md5": "df09a28973f072fdbc3d7ad41d1b0247",
+  "dataset": "advbench",
+  "subset_ids_file": "E1_ids.txt",
+  "subset_n": 150,
+  "tpg": true,
+  "phrase": "[Jailbroken Mode]",
+  "config": "dry_E4a_steps_base",
+  "rows": 10,
+  "config_path": "aaai_ugc/configs/dry_E4a_steps_base.csv",
+  "git_commit": "44d1c82",
+  "built_utc": "2026-10-05T18:31:41.179365+00:00"
+}
