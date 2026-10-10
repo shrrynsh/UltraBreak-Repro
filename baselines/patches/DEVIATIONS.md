@@ -50,3 +50,27 @@ bitsandbytes (absent from the env). Set to **False**: 8-bit quantisation sits di
 the gradient path of a pixel PGD attack, and the RTX 6000 Ada's 48 GB holds Vicuna-13B in
 fp16 (~26 GB) comfortably. Also `torch 1.12.1 -> 2.0.1+cu118` (sm_89 needs CUDA >= 11.8),
 as already recorded in `baselines/PROTOCOL.md`.
+
+## Dependencies added to the `minigpt4` env (2026-10-10)
+
+Neither vendored repo ships a working dependency list for this stack, and the smoke
+test caught it before any GPU hours were spent. A full AST scan of every import on both
+entry-script paths (90 files, 53 top-level imports) found six missing, rather than
+discovering them one crash at a time:
+
+| module | needed by | installed as |
+|---|---|---|
+| `seaborn` | `visual_attacker.py` / `vlm_attacker.py` (loss curve) | `seaborn` |
+| `pandas` | `minigpt4/common/utils.py` | `pandas` (+ `pytz`, `python-dateutil`, `tzdata`, `six`) |
+| `skimage` | `minigpt4/common/gradcam.py` | `scikit-image` (+ `networkx`, `imageio`, `tifffile`, `lazy_loader`) |
+| `decord` | `minigpt4/datasets/data_utils.py` — on the import path via `minigpt4.tasks` | `decord` |
+| `fastchat` | UMK `minimal_gcg/string_utils.py` | `fschat` |
+| `llm_attacks` | UMK `minimal_gcg/opt_utils.py` (`get_embedding_matrix`, `get_embeddings`) | **upstream** `git+https://github.com/llm-attacks/llm-attacks.git` |
+
+`llm_attacks` is not on PyPI and only two small functions are used; it was installed from
+the original GCG repository rather than reimplemented, so UMK's suffix optimisation runs
+the authors' own code.
+
+Every install used `--no-deps` so nothing could bump the pinned stack. Verified before
+and after: **torch 2.0.1+cu118, transformers 4.28.0** unchanged, and both entry-script
+import chains now import cleanly.

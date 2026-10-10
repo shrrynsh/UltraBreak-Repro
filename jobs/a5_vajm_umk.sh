@@ -65,15 +65,15 @@ if [[ ! -f "$MARK/smoke" ]]; then
   rm -rf "$STAGE/smoke_v" "$STAGE/smoke_u"; mkdir -p "$STAGE/smoke_v" "$STAGE/smoke_u"
   ( cd baselines/vajm && VAJM_N_ITERS=3 "$MP" minigpt_visual_attack.py \
       --cfg_path eval_configs/minigpt4_eval.yaml --gpu_id 0 --n_iters 3 \
-      --alpha 1 --save_dir "$STAGE/smoke_v" ) || { echo "$L SMOKE FAIL vajm" >&2; exit 1; }
-  [[ -s "$STAGE/smoke_v/bad_prompt.bmp" ]] || { echo "$L SMOKE FAIL vajm produced no image" >&2; exit 1; }
+      --alpha 1 --save_dir "$STAGE/smoke_v" ) || { echo "$L SMOKE FAIL vajm" >&2; resub; exit 1; }
+  [[ -s "$STAGE/smoke_v/bad_prompt.bmp" ]] || { echo "$L SMOKE FAIL vajm produced no image" >&2; resub; exit 1; }
   echo "$L smoke: VAJM OK"
   ( cd baselines/umk && UMK_N_ITERS=3 UMK_INIT_IMG="$STAGE/smoke_v/bad_prompt.bmp" \
       UMK_CORPUS_CSV="harmful_corpus/safebench_tiny_fewshot.csv" UMK_N_FEWSHOT=50 \
       "$MP" minigpt_vlm_attack.py --cfg_path eval_configs/minigpt4_eval.yaml \
       --gpu_id 0 --n_iters 3 --alpha 1 --save_dir "$STAGE/smoke_u" ) \
-    || { echo "$L SMOKE FAIL umk" >&2; exit 1; }
-  [[ -s "$STAGE/smoke_u/bad_vlm_prompt.bmp" ]] || { echo "$L SMOKE FAIL umk produced no image" >&2; exit 1; }
+    || { echo "$L SMOKE FAIL umk" >&2; resub; exit 1; }
+  [[ -s "$STAGE/smoke_u/bad_vlm_prompt.bmp" ]] || { echo "$L SMOKE FAIL umk produced no image" >&2; resub; exit 1; }
   echo "$L smoke: UMK OK (seeded from VAJM, SafeBench-Tiny corpus)"
   touch "$MARK/smoke"; echo "$L stage 0 PASSED at ${SECONDS}s"
 fi
