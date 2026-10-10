@@ -171,11 +171,15 @@ for name, df in sets.items():
         print(f"[a5] {out}: {len(rows)} rows, suffix={'yes' if suf else 'no'}")
 PY
 
-for tag in vajm umk; do
-  for bench in safebench advbench mmsafety; do
-    CFG="a5_${tag}_${bench}"
-    [[ -s "attack_configs/${CFG}.csv" ]] || { echo "$L missing config $CFG" >&2; continue; }
-    for m in "${MODELS[@]}"; do
+# MODEL-major, cheap models first and GLM last. Stage 3 is ~29 GPU-h of which GLM
+# at the 4096-token budget is ~22 (76%), so a benchmark-major order would spend a
+# whole 24h window part-way through GLM with no complete row to show. This way the
+# 30 non-GLM cells (~7 GPU-h) all land first and GLM's 6 follow.
+for m in "${MODELS[@]}"; do
+  for tag in vajm umk; do
+    for bench in safebench advbench mmsafety; do
+      CFG="a5_${tag}_${bench}"
+      [[ -s "attack_configs/${CFG}.csv" ]] || { echo "$L missing config $CFG" >&2; continue; }
       MK="$MARK/eval_${CFG}_$(echo "$m" | tr '/' '_')"
       [[ -f "$MK" ]] && continue
       RES="results/${CFG}/${m}.csv"
