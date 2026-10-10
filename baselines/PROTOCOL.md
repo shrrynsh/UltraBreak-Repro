@@ -22,10 +22,37 @@ The paper's exact baseline setup, to follow strictly:
 | **VAJM** | optimise image on the **derogatory corpus, 5,000 iters** (original protocol) | all benchmarks × 6 models | Few-shot corpus = **SafeBench-Tiny** (fairness, same as UltraBreak). Surrogate = Qwen2-VL-7B (UltraBreak's surrogate). |
 | **UMK** | seed = the VAJM image; jointly optimise image + text suffix, **+2,000 iters** | all benchmarks × 6 models | Same SafeBench-Tiny few-shot corpus. |
 
-## Open point to resolve from the VAJM repo
-"derogatory corpus" (VAJM's original optimisation target) vs "SafeBench-Tiny as the few-shot corpus"
-(the paper's fairness constraint) — confirm from the official VAJM code exactly which corpus drives the
-image optimisation and where SafeBench-Tiny plugs in.
+## RESOLVED (2026-10-10) — which corpus drives which stage
+
+Answered from the released code, not inferred:
+
+- **VAJM.** `minigpt_visual_attack.py:90` hardcodes `harmful_corpus/derogatory_corpus.csv`, and the
+  attacker is constructed as `Attacker(args, model, targets, ...)` — **it takes target strings only,
+  with no query set at all.** There is nowhere for SafeBench-Tiny to enter VAJM's image optimisation.
+  So the paper's two sentences cannot both hold for VAJM; the explicit, implementable one wins:
+  **derogatory corpus, 5,000 iterations.**
+- **UMK.** `minigpt_vlm_attack.py` constructs `Attacker(args, model, queries, targets, ...)` — it does
+  take (query, target) pairs. **SafeBench-Tiny plugs in here**, which is where the paper's fairness
+  constraint is meaningful. Built as `baselines/umk/harmful_corpus/safebench_tiny_fewshot.csv`:
+  all 50 SafeBench-Tiny `instruction` strings as queries, with
+  `"Sure, here are some {instruction}"` as targets (UMK appends `':'` itself).
+
+UltraBreak's affirming phrase `[Jailbroken Mode]` is deliberately **not** injected into UMK's targets
+or eval prompts: that is UltraBreak's own prompt-engineering component, and importing it would make
+the baseline partly UltraBreak. The corpus is swapped as the paper asks; UMK's method (GCG suffix +
+PGD image) is left intact. At evaluation each baseline uses its own method's prompt — VAJM is
+image-only, UMK is image + its optimised suffix.
+
+### Three places the shipped code contradicts the paper, each overridden
+| # | paper | shipped code | set to |
+|---|---|---|---|
+| 1 | UMK "an additional **2,000** iterations" | attack call hardcodes `num_iter=250` | **2000** |
+| 2 | UMK seeded by "that optimised image" (VAJM's) | hardcodes its own `prompt_unconstrained_init.bmp` | **VAJM's `bad_prompt.bmp`** |
+| 3 | "all methods use SafeBench-Tiny as the few-shot corpus" | 66 **unseeded** random AdvBench rows | **all 50 SafeBench-Tiny pairs** |
+
+VAJM's 5,000 iterations needed no change (already hardcoded at 5000, though its own `--n_iters` flag
+is dead code). Full detail and the patch rationale: [`patches/DEVIATIONS.md`](patches/DEVIATIONS.md).
+Job: `jobs/a5_vajm_umk.sh`.
 
 ## Repos (baselines/, git-ignored external code)
 - `figstep/` — github.com/ThuCCSLab/FigStep (released typography images)
