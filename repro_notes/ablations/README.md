@@ -65,18 +65,23 @@ phrases:
 
 | Phrase | Ours (GLM) | Paper (GLM) |
 |---|---|---|
-| `[Jailbroken Mode]` | 39.05% | 66.03% |
-| `[ACCESS AUTHORISED]` | 30.48% | 72.06% |
-| `[CLASSIFIED INFO]` | 32.70% | 66.98% |
+| `[Jailbroken Mode]` | 60.63% | 66.03% |
+| `[ACCESS AUTHORISED]` | 54.60% | 72.06% |
+| `[CLASSIFIED INFO]` | 59.68% | 66.98% |
 
-**Does not reproduce.** Our GLM numbers are ~30 points below the paper, and the
-*ordering* differs too (paper: ACCESS > CLASSIFIED > JBM; ours: JBM > CLASSIFIED >
-ACCESS). Two likely causes: our GLM is judged by v3 with `<think>`-aware extraction
-(the paper's GLM handling differs), and phrase sensitivity is small relative to that
-judging difference. So Table 5's *magnitudes* don't reproduce; the qualitative point
-(the attack is somewhat robust to the exact phrase) partly holds — all three land in
-a 30–39% band for GLM. (On the white-box Qwen2-VL the phrases swing wildly —
-78.7 / 58.7 / 7.9 — so phrase choice matters far more there.)
+**Largely reproduces, after the D14 fix.** These numbers were re-measured with GLM
+generating at `max_new_tokens=4096` (see [[../author_code_defects/README]] D14); at the
+old 512 budget GLM was truncated mid-`<think>` on a large fraction of rows and the three
+phrases read 39.05 / 30.48 / 32.70 — roughly 30 points low. Corrected, they land
+**within 5.4–17.5 points of the paper** and all three sit in a tight 54.6–60.6 band,
+which is the qualitative claim Table 5 makes: the attack is only mildly sensitive to the
+exact affirming phrase.
+
+The *ordering* still differs (paper: ACCESS > CLASSIFIED > JBM; ours: JBM > CLASSIFIED >
+ACCESS), and the residual gap is largest on `[ACCESS AUTHORISED]` (54.6 vs 72.1). Judge
+choice does not explain it — under v1 the same rows read 64.4 / 55.6 / 61.3, preserving
+our ordering. (On the white-box Qwen2-VL the phrases swing far harder —
+78.7 / 58.7 / 7.9 — so phrase choice matters much more there than on GLM.)
 
 ---
 

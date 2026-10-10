@@ -1,0 +1,5 @@
+config,description,job,n_checkpoints,span_hours,s_per_epoch_median,s_per_epoch_p25,s_per_epoch_p75,n_deltas,ratio_vs_ce
+semantic_attention_tau0.5,"UltraBreak default (semantic, attention, tau=0.5)",809.0,151,11.866,14.3177,14.111,14.387,150,1.1075
+ce,cross-entropy loss (B13),1005.0,151,10.776,12.9284,12.8586,13.0098,150,1.0
+semantic_token,"semantic loss, token mode (B14)",,151,11.528,13.8445,13.7751,13.8853,150,1.0709
+no_constraints,no TV / no random transforms (B12),,151,11.485,13.7698,13.7541,13.8102,150,1.0651

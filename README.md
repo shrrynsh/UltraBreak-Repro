@@ -31,16 +31,18 @@ The released artifact reproduces the paper's headline SafeBench number to the la
 
 ## Reproducibility checklist
 
-Full status of every paper table/figure in **[`repro_notes/REPRO_CHECKLIST.md`](repro_notes/REPRO_CHECKLIST.md)**. Summary (paper items: ✅ 1 · 🟡 5 · ⬜ 12 · 🚫 4):
+Full status of every paper table/figure in **[`repro_notes/REPRO_CHECKLIST.md`](repro_notes/REPRO_CHECKLIST.md)**. Summary (22 paper items: **✅ 16 · 🟡 2 · ⬜ 2 · 🚫 2**):
 
 | Area | Status |
 |---|---|
-| Table 1 — authors' image transfer matrix (6 models × 3 datasets) | 🟡 10/18 cells (SafeBench 5/6, AdvBench 5/6, MM-SafetyBench 0/6) |
-| Table 1 — baselines (FigStep / VAJM / UMK), proprietary models | ⬜ baselines · 🚫 proprietary (API) |
-| Table 2 — StrongREJECT scores · Table 9 — frontier · Table 10 — overhead | ⬜ / 🚫 / ⬜ |
-| Table 3, 5, 6 — component / phrase / TV-weight ablations | ⬜ all (CLI flags ready) |
-| Figures 2–6 — size/surrogate transfer, patterns, landscapes | ⬜ / 🟡 |
+| Table 1 — authors' image transfer matrix (6 models × 3 datasets) | ✅ **18/18 cells** |
+| Table 1 — transfer matrix with **our** retrained patch (job 809) | ✅ 3/3 benchmarks |
+| Table 1 — baselines | ✅ FigStep · 🟡 VAJM + UMK running (`jobs/a5_vajm_umk.sh`) · 🚫 proprietary (paid API) |
+| Table 2 — StrongREJECT · Table 9 — frontier · Table 10 — overhead | 🟡 (native 0–1 scorer missing) / 🚫 / ✅ **1.08× & 1.11× vs paper 1.17×** |
+| Table 3, 5, 6 — component / phrase / TV-weight ablations | ✅ **all six** (B11–B16) |
+| Figures 2–6 — size/surrogate transfer, patterns, landscapes | ✅ C2a, C3, C4, C6 · ⬜ C2b (blocked: LLaVA adapter missing a `return`) |
 | Metric — HarmBench ASR (v1/v2/v3) | ✅ + D12 robustness study |
+| GLM-4.1V token budget (D14) | ✅ all **32** configs regenerated at 4096; 95–100% valid extraction |
 
 ## Repo map
 

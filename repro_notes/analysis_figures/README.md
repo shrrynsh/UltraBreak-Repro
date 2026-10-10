@@ -18,6 +18,30 @@ Absolute times differ by GPU (the reproducible quantity is the ratio). **Reprodu
 the claim:** the semantic loss costs only ~8% more than CE — a negligible overhead
 for the large ASR gain. Same ballpark as the paper's 1.17×.
 
+### Independent corroboration from the real training runs (2026-10-10)
+
+The table above is a micro-benchmark (job 1172: one row, forward+backward, 5 timed
+iterations). A second, independent estimate comes from the **end-to-end training runs
+themselves** — every run checkpoints every 20 epochs, so consecutive checkpoint mtimes
+give a per-step wall-clock over the full 3000-epoch run, including optimiser, TV/L2 and
+checkpointing. Median of 150 deltas each, same GPU, same 50-row corpus:
+
+| run | s / epoch | ratio vs CE |
+|---|---|---|
+| CE (B13, job 1005) | 12.93 | 1.000 |
+| no constraints (B12) | 13.77 | 1.065 |
+| semantic, token mode (B14) | 13.84 | 1.071 |
+| **semantic, attention, τ=0.5 (job 809 — the default)** | **14.32** | **1.107** |
+
+**Two independent methods agree:** 1.08× (micro-benchmark) and **1.11×** (whole-run
+wall-clock), against the paper's 1.17×. The overhead claim reproduces. The breakdown is
+also informative — of the ~11% total, roughly 6.5 points come from the input-space
+constraints (TV + random transforms) and the remaining ~4 from attention-mode semantic
+loss over token-mode. Note "epoch" here is one pass over the 50-row corpus, so absolute
+seconds are not comparable to the micro-benchmark's per-row figure; only the ratios are.
+
+Data: `analysis/out/a10_overhead.csv` / `.json`.
+
 ---
 
 ## C2a / Fig 2a — model-size transfer (job 1184), SafeBench-315 v3
@@ -72,10 +96,50 @@ temperature relaxing the exact-match target.
 
 ---
 
+## C3 / Figure 3 — do the input-space constraints really produce text-like patterns?
+
+**Date: 2026-10-10.** The paper shows patches side by side and asserts qualitatively
+that random transforms + TV yield *structured, text-like* patterns while unconstrained
+optimisation yields noise. A contact sheet cannot settle that, so the figure pairs the
+images with three measured texture statistics (numpy only — the pinned env gains no
+packages): **TV/px** (local smoothness), **mid-band FFT power** in 8–32 cycles/image
+(the scale glyph strokes live at), and **Sobel edge density**.
+
+| patch | TV/px | mid-band | high-band | edge density |
+|---|---|---|---|---|
+| authors' `ultrabreak.png` | 0.0793 | 0.2247 | 0.7621 | 0.641 |
+| **ours, job 809 (semantic + constraints)** | **0.0572** | **0.2926** | 0.6235 | 0.598 |
+| TV 1.0 (B16) | 0.0596 | 0.2217 | 0.7027 | 0.611 |
+| token mode (B14) | 0.0666 | 0.2474 | 0.6948 | 0.595 |
+| TV 0.2 (B16) | 0.0805 | 0.2929 | 0.6446 | 0.693 |
+| CE loss (B13) | 0.1335 | 0.2121 | 0.7373 | 0.862 |
+| **no constraints (B12)** | **0.2485** | **0.0838** | 0.9109 | 0.930 |
+
+**Reproduces, and now quantitatively.** Dropping TV *and* the random transforms (B12)
+makes the patch **4.3× rougher** (TV 0.2485 vs 0.0572) and collapses mid-band energy to
+**0.084 — a 3.5× drop** — with 91% of its power above 32 cycles/image and 93% of pixels
+sitting on a strong edge. That is the signature of pixel noise, not structure. Every
+constrained run is smoother *and* more mid-band-concentrated.
+
+The images make the same point by eye: the constrained patches carry legible glyph-like
+fragments (`Sure`, `Steps to`, `Mode`, `YES`, `TIPS`), while B12 is uniform RGB static.
+This is the clearest visual evidence in the study that the constraints, not the semantic
+loss alone, are what produce the paper's "text-like" patterns — note that **CE loss with
+constraints still intermediate** (TV 0.134, edges 0.862): the loss choice matters less
+for *texture* than the constraints do.
+
+Figure: [`../../figures/fig3_patch_patterns.png`](../../figures/fig3_patch_patterns.png) ·
+data `analysis/out/fig3_texture_stats.csv` · script `analysis/fig3_patterns.py`.
+
+---
+
 ## Bottom line
 
-All four analysis experiments **reproduce the paper's qualitative claims**: semantic
-loss is nearly free (A10), it smooths the landscape and higher τ smooths it more
-(C4), τ spreads the first-token mass (C6), and transfer improves with a larger
-surrogate / smaller victim (C2a). These are mechanism confirmations, complementing
+All five analysis experiments **reproduce the paper's qualitative claims**: semantic
+loss is nearly free (A10 — 1.08× and 1.11× by two independent methods vs the paper's
+1.17×), it smooths the landscape and higher τ smooths it more (C4), τ spreads the
+first-token mass (C6), transfer improves with a larger surrogate / smaller victim
+(C2a), and the input-space constraints — not the loss — are what produce the
+structured, text-like patterns (C3, measured: 4.3× smoother, 3.5× more mid-band
+energy than the unconstrained ablation). These are mechanism confirmations, complementing
 the ASR-level reproduction gap documented in [[../reproducibility/README]].

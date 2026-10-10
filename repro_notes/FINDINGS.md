@@ -172,7 +172,7 @@ Note that job 625 beat job 622 by ~20 points *despite* carrying a 6.6× contrast
 1. **Step 5 — projection with the raw-latent clamp removed** (`optimise_proj.py:153`), so `x_proj` spans the full dynamic range. Highest expected value. Pair with a longer budget: job 625 was still descending at step 1400, and the original run went 27.4% @1300 → 62.9% @5000, so the paper's 1300-step evaluation point is likely under-trained here. Cost reference: 1400 steps ≈ 5.3 h on one RTX 6000 Ada.
 2. **Evaluate the projected image on LLaVA.** Neither full-50 run has a transfer evaluation, so we don't know whether the projection also closes the surrogate/transfer anomaly or merely raises the surrogate number.
 3. **Score every row under one judge pass** (judge-only, no regeneration). Job 647 covers the retrains at v1; the authors' artifact still needs v3.
-4. **Regenerate GLM-4.1V with a larger token budget.** At `max_new_tokens=512` only ~45% of generations complete; 31% hit the cap mid-`<think>` and never emit an answer. GLM's ASR cannot be fixed by re-scoring.
+4. ~~**Regenerate GLM-4.1V with a larger token budget.**~~ **DONE (2026-10-08).** At `max_new_tokens=512` only ~45% of generations completed; 31% hit the cap mid-`<think>` and never emitted an answer, so GLM's ASR could not be fixed by re-scoring. All **32** GLM configs were regenerated at **4096** tokens (D14): valid-extraction is now **95–100%** on every config, and every GLM number in this study has been replaced with the corrected value. Largest movements: No-Attack SafeBench 12.70 → **53.02**, Table 5 phrase sweep 39.1/30.5/32.7 → **60.6/54.6/59.7**, MM-SafetyBench (authors') 38.1 → **63.9**.
 
 ---
 

@@ -42,7 +42,7 @@ weakened to the same white-box strength as projon**. So:
 | Qwen-VL-Chat | 76.51 | 69.84 | 75.87 |
 | LLaVA-1.6-mistral | 89.84 | 88.89 | 87.62 |
 | Kimi-VL-A3B | 34.29 | **58.73** | 48.25 |
-| GLM-4.1V-9B | 36.51 | 31.11 | 35.87 |
+| GLM-4.1V-9B | 64.76 | 62.54 | 64.44 |
 
 ### AdvBench ASR %
 | Target | projoff | projon | control |
@@ -51,7 +51,7 @@ weakened to the same white-box strength as projon**. So:
 | Qwen-VL-Chat | 58.65 | 57.88 | 69.81 |
 | LLaVA-1.6-mistral | 94.23 | 91.73 | 89.23 |
 | Kimi-VL-A3B | 20.58 | **25.38** | 24.04 |
-| GLM-4.1V-9B | 7.88 | 5.00 | 7.31 |
+| GLM-4.1V-9B | 20.38 | 17.50 | 20.38 |
 
 **Read the projon column against control.** projon (projection ON) is the best of
 the three arms on **only one model — Kimi-VL — and it wins there on both
@@ -72,7 +72,7 @@ baseline (blank white image, no jailbreak phrase):
 | Qwen-VL-Chat | 7.30 | 3.46 |
 | **LLaVA-1.6-mistral** | **57.14** | **48.65** |
 | Kimi-VL-A3B | 33.02 | 3.46 |
-| GLM-4.1V-9B | 12.70 | 0.96 |
+| GLM-4.1V-9B | 53.02 | 9.81 |
 
 **LLaVA already says yes to ~half of everything.** So LLaVA's headline 90–94%
 transfer number is mostly LLaVA being LLaVA, not the attack working.
@@ -84,8 +84,8 @@ This is "how much did the attack actually add?" (projoff arm):
 |---|---|---|
 | Qwen-VL-Chat | **+69.2** | **+55.2** |
 | LLaVA-1.6 | +32.7 | +45.6 |
-| GLM-4.1V | +23.8 | +6.9 |
 | Qwen2.5-VL | +18.4 | +4.0 |
+| GLM-4.1V | +11.7 | +10.6 |
 | Kimi-VL | +1.3 | +17.1 |
 
 **Takeaway:** the attack genuinely works (big lifts on Qwen-VL-Chat, LLaVA, and
@@ -122,7 +122,7 @@ The 809 patch (our best retrain) transferred to MM-SafetyBench-520 × the target
 | Qwen2.5-VL | 39.62% | 48.08% |
 | Qwen2-VL (WB) | 34.04% | 37.31% |
 | Kimi-VL | 31.35% | 54.42% |
-| GLM-4.1V | 28.65% | 38.08% |
+| GLM-4.1V | 57.88% | 63.85% |
 
 **Consistent with the generalization story:** our retrain matches the authors' image
 on LLaVA (75.2 ≈ 74.6) but trails on Kimi/Qwen2.5/GLM — the same "809 is a decent but

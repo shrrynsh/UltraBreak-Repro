@@ -1,0 +1,13 @@
+{
+  "method": "median of consecutive every-20-epoch checkpoint mtime deltas / 20",
+  "gpu": "RTX 6000 Ada (48GB)",
+  "corpus": "SafeBench-Tiny full50 (50 rows)",
+  "epochs": 3000,
+  "ours_ratio_semantic_over_ce": 1.1075,
+  "paper_ratio": 1.1724,
+  "paper_absolute_h100_s": {
+    "ce": 6.44,
+    "ultrabreak": 7.55
+  },
+  "note": "absolute times are not comparable across GPUs; the paper's own reproducible quantity is the ratio"
+}

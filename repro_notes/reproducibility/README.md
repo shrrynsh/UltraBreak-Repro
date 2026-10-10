@@ -138,10 +138,12 @@ column (`results/exact_comparison_summary.csv`, jobs 1088/1118).
 | Qwen-VL-Chat | 60.3 | 68.9 | **77.1** |
 | LLaVA-1.6 | 85.4 | 87.6 | **88.3** |
 | Kimi-VL | 65.1 | 61.0 | **69.8** |
-| GLM-4.1V | 30.2 | 29.8 | **35.9** |
+| GLM-4.1V | 58.7 | **61.0** | 60.3 |
 
-The **released image transfers best on every target** (biggest gap on Qwen2.5-VL:
-54 vs ~26). code-faithful vs paper-faithful is a wash in transfer (each wins ~half).
+The released image transfers best on **four of five** targets (biggest gap on
+Qwen2.5-VL: 54 vs ~26). **GLM is the exception**: once GLM is generated at the
+corrected 4096-token budget (D14), paper-faithful (61.0) edges out the released
+image (60.3) and code-faithful (58.7) is close behind — all three within 2.3 points. code-faithful vs paper-faithful is a wash in transfer (each wins ~half).
 
 ---
 

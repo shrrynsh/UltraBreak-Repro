@@ -65,34 +65,34 @@ comparison) self-chains independently.
 |---|---|---|---|
 | A1 | **Table 1** — UltraBreak ASR, authors' image, 6 open models × SafeBench | ✅ 6/6 | done (Kimi-VL/SafeBench = 66.67%, job 987) |
 | A2 | **Table 1** — …× AdvBench | ✅ 6/6 | done (Qwen-VL-Chat/AdvBench = 76.15%, job 987) |
-| A3 | **Table 1** — …× **MM-SafetyBench** (subsampled 520) | ✅ 6/6 | done (job 994): Qwen2-VL 37.3, Qwen2.5 48.1, Qwen-VL-Chat 56.0, LLaVA 74.6, Kimi 54.4, GLM 38.1 |
-| A4 | **Table 1** — transfer matrix with **our retrained** patch (809), not just the authors' image | 🟡 SB+AB | **done for SafeBench + AdvBench** (jobs 935/939 — 809 = the projoff arm × 5 targets); MM-SafetyBench transfer still open. See [[transfer_experiment/README]] |
-| A5 | **Table 1** — baselines **FigStep / VAJM / UMK** | ⬜ | none implemented; the comparative claim rests on these (E4) |
+| A3 | **Table 1** — …× **MM-SafetyBench** (subsampled 520) | ✅ 6/6 | done (job 994): Qwen2-VL 37.3, Qwen2.5 48.1, Qwen-VL-Chat 56.0, LLaVA 74.6, Kimi 54.4, GLM **63.9** (re-measured at the corrected 4096 budget, D14) |
+| A4 | **Table 1** — transfer matrix with **our retrained** patch (809), not just the authors' image | ✅ 3/3 | **done on all three benchmarks** — SafeBench + AdvBench (jobs 935/939) and **MM-SafetyBench** (`a4mm_809_mmsafety`, 6 models). 809 trails the released image on every target except LLaVA. See [[transfer_experiment/README]] |
+| A5 | **Table 1** — baselines **FigStep / VAJM / UMK** | 🟡 1/3 | **FigStep done** (authors' released typography images × 6 models, SafeBench-only per the paper). **VAJM + UMK in flight** — `jobs/a5_vajm_umk.sh` (job 8955): VAJM 5000 iters → UMK +2000 seeded from it → eval × 6 models × 3 benchmarks. Three paper-vs-code contradictions overridden; see [[../baselines/patches/DEVIATIONS.md]] |
 | A6 | **Table 1** — proprietary GPT-4.1-nano / Gemini-2.5-flash-lite / Claude-3-haiku | 🚫 | paid API — report as untested, not omitted |
 | A7 | **Table 2** — **StrongREJECT scores** on AdvBench (UltraBreak vs VAJM/UMK) | 🟡 | ext-benchmarks (job 950) scored StrongREJECT+HarmBench prompts (native+norm) with the HarmBench judge for authors' image + 4 retrains; SR *native* 0–1 scorer still absent; baselines missing |
 | A8 | **Table 9** — frontier GPT-5 / Claude-Sonnet-4.5 subset | 🚫 | paid API |
-| A10 | **Table 10** — compute overhead, CE vs semantic (s/iter) | 🟡 | CE run done (B13, job 1005); per-step wall-clock in `losses.csv` — comparison table not yet compiled |
+| A10 | **Table 10** — compute overhead, CE vs semantic (s/iter) | ✅ | done two independent ways — micro-benchmark (job 1172) **1.08×** and whole-run checkpoint wall-clock **1.11×**, vs the paper's 1.17×. `analysis/out/a10_overhead.csv`. (Note: `losses.csv` has **no** timing column — the earlier note here was wrong.) See [[analysis_figures/README]] |
 
 ## B. Ablations (Tables 3, 5, 6)
 
 | # | Paper item | Status | What's missing / enabling flag |
 |---|---|---|---|
-| B11 | **Table 3** — *w/o jailbreak image* (No-Attack) | ✅ | done (job 997), 6 models × {SafeBench, AdvBench} — the transfer baseline. LLaVA is weakly aligned (57.1/48.7 with no attack). See [[transfer_experiment/README]] |
-| B12 | **Table 3** — *w/o constraints* (transforms + TV off) | ⏳ | pipeline step 11 (pending) — `--no_transforms --tv_weight 0` |
+| B11 | **Table 3** — *w/o jailbreak image* (No-Attack) | ✅ 3/3 | done on **all three** benchmarks: SafeBench + AdvBench (job 997) and **MM-SafetyBench** (job 8746, 12/12 cells). LLaVA is weakly aligned (57.1/48.7 with no attack); GLM is too (53.0 SafeBench at the corrected budget). See [[transfer_experiment/README]] |
+| B12 | **Table 3** — *w/o constraints* (transforms + TV off) | ✅ | done: SafeBench 31.75%, AdvBench 2.12% (v3) — the largest single-component drop. Also the key C3 texture reference |
 | B13 | **Table 3** — *w/o semantic loss* (CE baseline) | ✅ | done (job 1005): SafeBench 67.94%, AdvBench 15.77% (v3). Also yields A10 timing |
-| B14 | **Table 3** — *w/o attention weighting* (token mode, τ→0) | ⏳ 1020 | pipeline step 10, **running** — `--loss_mode token` |
-| B15 | **Table 5** — affirming-phrase sensitivity (3 phrases, GLM, SafeBench) | ⬜ | `--phrase` (cheap); not in the current pipeline |
-| B16 | **Table 6** — **TV weight** {0, 0.2, 0.5, 1} on Qwen-VL + GLM | ⏳ | pipeline steps 12–13 (pending), TV 0.2 & 1.0 (0.5 ≈ 809 already); **tests [[DISCREPANCIES#D10]]** |
+| B14 | **Table 3** — *w/o attention weighting* (token mode, τ→0) | ✅ | done: SafeBench 14.60%, AdvBench 1.15% (v3) |
+| B15 | **Table 5** — affirming-phrase sensitivity (3 phrases, GLM, SafeBench) | ✅ | done, then **re-measured at the corrected 4096 GLM budget (D14)**: 60.6 / 54.6 / 59.7 vs the paper's 66.0 / 72.1 / 67.0. Largely reproduces; ordering still differs. See [[ablations/README]] |
+| B16 | **Table 6** — **TV weight** {0, 0.2, 0.5, 1} on Qwen-VL + GLM | ✅ | TV 0.2 (40.00%) and 1.0 (56.51%) done; 0.5 ≈ job 809 (83.49%). Non-monotonic in TV on our runs; **tests [[DISCREPANCIES#D10]]** |
 
 ## C. Analysis figures (2–6)
 
 | # | Paper item | Status | What's missing |
 |---|---|---|---|
-| C2a | **Fig 2a** — model-size transfer (Qwen 2B/7B/32B) | ⬜ | needs 2B & 32B Qwen weights |
-| C2b | **Fig 2b** — surrogate-model choice (train on other surrogates) | ⬜ | LLaVA adapter exists + D11 fix; not trained (E7) |
-| C3 | **Fig 3** — transforms/TV emergent text-like patterns (qualitative) | 🟡 | patch PNGs on disk; no side-by-side figure |
-| C4 | **Fig 4/5** — loss landscapes, CE vs semantic vs τ | ⬜ | visualisation; lower priority |
-| C6 | **Fig 6** — first-token prob distribution by τ | ⬜ | not done |
+| C2a | **Fig 2a** — model-size transfer (Qwen 2B/7B/32B) | ✅ 2/3 | 2B and 7B surrogates done (`c2a_surr2B/7B_safebench`); **32B dropped by decision** (weights + VRAM out of budget), reported as such. See [[analysis_figures/README]] |
+| C2b | **Fig 2b** — surrogate-model choice (train on other surrogates) | ⬜ **blocked** | `optimisation/llava16_adapter.py` builds `weights` then falls through with **no `return`**, so `process_target` yields `None` and any LLaVA-surrogate run crashes on unpack (upstream finding #2). One-line fix, then ~8 GPU-h |
+| C3 | **Fig 3** — transforms/TV emergent text-like patterns (qualitative) | ✅ | `figures/fig3_patch_patterns.png` — contact sheet **plus measured texture stats**, so the claim is falsifiable. Unconstrained is 4.3× rougher and has 3.5× less mid-band (stroke-scale) energy. Reproduces |
+| C4 | **Fig 4/5** — loss landscapes, CE vs semantic vs τ | ✅ | done (job 1174/1178): 8 landscapes, CE vs semantic × τ ∈ {0, 0.5, ∞}. Semantic is smoother and higher τ smoother still. `analysis/out/fig4_*`, `fig5_*` |
+| C6 | **Fig 6** — first-token prob distribution by τ | ✅ | done (job 1184): entropy rises 1.3 → 3.3 nats with τ. `analysis/out/ftok_*` |
 
 ## D. Metrics
 
