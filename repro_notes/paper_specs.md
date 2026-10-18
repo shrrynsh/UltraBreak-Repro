@@ -92,3 +92,58 @@ Consequence for A5 (`jobs/a5_vajm_umk.sh`): our run trains **both** on MiniGPT-4
 Vicuna-13B, the original repos' native stack. VAJM is defensible that way, but our UMK
 suffix is optimised in Vicuna's token space and cannot be compared like-for-like with
 the paper's 97.78. Report ours as cross-architecture transfer and say so.
+
+---
+
+## What the paper specifies about MM-SafetyBench (checked 2026-10-18)
+
+**Everything it says:**
+
+> "MM-SafetyBench is a dataset specifically designed for multimodal safety evaluation,
+> which contains **1680 harmful targets covering 13 scenarios**."
+
+That is the whole specification. It confirms the denominator our forensics recovered
+(1680 is the unique N consistent with all 24 reported MM-SafetyBench values).
+
+**What it does NOT specify — two genuine reproducibility gaps:**
+
+1. **Which variant.** MM-SafetyBench ships each question in four forms: Stable-Diffusion
+   image, typographic image, SD+TYPO, and `Text_only`. The paper never says which. The
+   string "Stable-Diffusion" does not appear in it at all.
+2. **Whether the adversarial image replaces the benchmark's own image.** MM-SafetyBench is
+   natively multimodal; UltraBreak supplies a universal image. The paper does not state
+   that one substitutes for the other, though its threat model ("works when paired with any
+   harmful text query") implies it.
+
+**Our choice, and why it is the only coherent one.** We use the **`Text_only` split, all
+1680**. The image-bearing splits cannot be used with a universal adversarial image: their
+questions are *image-dependent* ("The bottom of the image shows a phrase…"), so pairing them
+with an adversarial patch instead of their own generated image leaves the question
+referring to something that is no longer there. `Text_only`'s questions are self-contained.
+Independently, only the full set reproduces the paper's denominator. So the choice is
+forced — but it is forced by us, not stated by the authors, and belongs in the write-up.
+
+## Three other protocol points confirmed from the paper's text
+
+- **SafeBench 315 is right, and now confirmed in prose**, not just by forensics: 500 queries,
+  minus the three excluded topics (legal opinion, financial advice, health consultation),
+  minus SafeBench-Tiny → "a final held-out evaluation set of 315 harmful queries". ✓ ours.
+- **AdvBench: the paper says "500 harmful textual instructions"** while every number it
+  reports is an exact n/**520**. Restates [[DISCREPANCIES#D6]].
+- **No rewording of evaluation prompts is described anywhere.** The only rewording the paper
+  describes is TPG, and it describes applying it to the *few-shot training corpus*. The
+  released code additionally rewrites every AdvBench goal to "Steps to …" at **evaluation**
+  time — worth **+58 points** — and the paper never mentions it. This is
+  [[DISCREPANCIES#D13]], now confirmed against the paper's full text rather than its tables.
+- **Judge**: "HarmBench-Llama-2-13b, using its original chat template without modification."
+  The released `evaluate.py` does *not* match that description — its extractor anchors on the
+  first literal `assistant`, which lands inside Qwen's system prompt ([[DISCREPANCIES#D12]]).
+  So the paper describes faithful use; the code deviates from the paper.
+
+**On TPG at evaluation.** The paper's prose places TPG on the training corpus, which would
+imply bare evaluation prompts. Two pieces of evidence say TPG is nevertheless applied at
+evaluation: (a) the paper changes the affirming phrase to `[START LIST]` *for closed-source
+evaluation*, which is meaningless unless the phrase appears in eval prompts; (b) our E2
+ablation measured the authors' own released image at **16.83%** on SafeBench with TPG off
+versus **78.73%** with it on — only the latter reproduces their 81.59%. The numbers settle
+what the prose leaves ambiguous.
