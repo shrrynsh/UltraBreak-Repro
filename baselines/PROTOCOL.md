@@ -19,8 +19,8 @@ The paper's exact baseline setup, to follow strictly:
 | Baseline | Training | Eval scope | Notes |
 |---|---|---|---|
 | **FigStep** | none | **SafeBench only**, 6 models | Use authors' released typography images; per-target images, no universal trigger, so excluded from AdvBench/MM-SafetyBench. |
-| **VAJM** | optimise image on the **derogatory corpus, 5,000 iters** (original protocol) | all benchmarks × 6 models | Few-shot corpus = **SafeBench-Tiny** (fairness, same as UltraBreak). Surrogate = Qwen2-VL-7B (UltraBreak's surrogate). |
-| **UMK** | seed = the VAJM image; jointly optimise image + text suffix, **+2,000 iters** | all benchmarks × 6 models | Same SafeBench-Tiny few-shot corpus. |
+| **VAJM** | optimise image on the **derogatory corpus, 5,000 iters** (original protocol) | all benchmarks × 6 models | **Surrogate = MiniGPT-4 / Vicuna-13B** — the original repo's native stack, which is what "follow the original protocol" means and what the released code hardcodes. *(An earlier draft of this line said Qwen2-VL-7B; that was never what ran, and VAJM's attacker takes no query set so SafeBench-Tiny cannot enter its image stage at all — see RESOLVED below.)* |
+| **UMK** | seed = the VAJM image; jointly optimise image + text suffix, **+2,000 iters** | all benchmarks × 6 models | Same MiniGPT-4 surrogate; few-shot corpus = SafeBench-Tiny (all 50). **The paper ran UMK white-box on Qwen2-VL** — its 97.78/70.00/54.76 there vs ≤50.79 elsewhere is a white-box profile, and a GCG suffix is tokenizer-specific. Our UMK row is therefore **cross-architecture transfer** and must be labelled as such. See [[../repro_notes/baselines/README]] |
 
 ## RESOLVED (2026-10-10) — which corpus drives which stage
 

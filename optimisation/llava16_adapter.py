@@ -70,6 +70,12 @@ class Llava16Adapter(BaseModelAdapter):
             if any(word in token_str for word in keywords):
                 weights[prompt_len + i] = 10.0
 
+        # The released code ends here with no `return`, so process_target yields None
+        # and compute_loss (line ~130) dies unpacking a 7-tuple -- i.e. the LLaVA
+        # surrogate path crashes on its first call as shipped (upstream finding #2).
+        # Slot 4 is None because LLaVA has no image_grid_thw (that is Qwen2-VL's);
+        # LLaVA's geometry travels in image_sizes, which the caller takes last.
+        return input_ids, labels, pixel_values, None, attention_mask, weights, image_sizes
 
     def apply_patch(self, image_tensor_batch, patch):
         """
