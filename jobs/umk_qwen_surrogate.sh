@@ -107,4 +107,5 @@ for b in ("safebench","advbench"):
               f"{(f'{o:.2f}' if o is not None else '·'):>19s}")
 print("\n  The decisive cell is Qwen2-VL/SafeBench: the paper reports 97.78.")
 PY
+echo "$L ALL PROTOCOL-FIX JOBS COMPLETE (Tables 3/6 @1300, MM n=1680, UMK/Qwen2-VL)"
 echo "$L finished $(date)"

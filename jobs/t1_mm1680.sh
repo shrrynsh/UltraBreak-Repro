@@ -54,6 +54,22 @@ MODELS=( "Qwen/Qwen2-VL-7B-Instruct" "Qwen/Qwen-VL-Chat" "Qwen/Qwen2.5-VL-7B-Ins
          "THUDM/GLM-4.1V-9B-Thinking" )
 TOTAL=$(( ${#ORDER[@]} * ${#MODELS[@]} ))
 
+
+# ── chain to the next stage ────────────────────────────────────────────────────
+# One running job and at most 3 submitted, so the night's work is a chain: each
+# stage self-resumes until ITS OWN work is done, then seeds the next stage once.
+# Keeping only one queued also leaves submit slots free for that self-resume.
+chain_to(){   # script jobname
+  local script="$1" name="$2"
+  [[ -f "$script" ]] || { echo "$L chain: $script not found" >&2; return; }
+  if squeue -u "${USER:-$(id -un)}" -h -o "%j" 2>/dev/null | grep -qx "$name"; then
+    echo "$L chain: $name already queued/running - not seeding again"; return
+  fi
+  local n; n=$(sbatch --parsable "$script" 2>&1) \
+    && echo "$L CHAIN -> $script as job $n" \
+    || echo "$L chain submit FAILED: $n" >&2
+}
+
 done_n(){ ls "$MARK" 2>/dev/null | wc -l; }
 START=$(done_n); RESUB=0
 resub(){ [[ $RESUB -eq 1 ]] && return; RESUB=1; local d; d=$(done_n)
@@ -141,5 +157,10 @@ print("\n  'subsample err' = how far the 520-row estimate sat from the full-set 
 PY
 
 echo ""; echo "$L cells: $(done_n)/$TOTAL"
-resub end
+if (( $(done_n) >= TOTAL )); then
+  echo "$L COMPLETE - handing the GPU to the UMK/Qwen2-VL surrogate run"
+  chain_to jobs/umk_qwen_surrogate.sh ub_umkq
+else
+  resub end
+fi
 echo "$L finished $(date)"

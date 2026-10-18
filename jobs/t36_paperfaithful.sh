@@ -53,6 +53,22 @@ print("[t36pf] env pins OK; D11 normalisation fix present")
 PY
 [[ $? -eq 0 ]] || exit 1
 
+
+# ── chain to the next stage ────────────────────────────────────────────────────
+# One running job and at most 3 submitted, so the night's work is a chain: each
+# stage self-resumes until ITS OWN work is done, then seeds the next stage once.
+# Keeping only one queued also leaves submit slots free for that self-resume.
+chain_to(){   # script jobname
+  local script="$1" name="$2"
+  [[ -f "$script" ]] || { echo "$L chain: $script not found" >&2; return; }
+  if squeue -u "${USER:-$(id -un)}" -h -o "%j" 2>/dev/null | grep -qx "$name"; then
+    echo "$L chain: $name already queued/running - not seeding again"; return
+  fi
+  local n; n=$(sbatch --parsable "$script" 2>&1) \
+    && echo "$L CHAIN -> $script as job $n" \
+    || echo "$L chain submit FAILED: $n" >&2
+}
+
 RESUB=0; done_n(){ ls "$MARK" 2>/dev/null | wc -l; }
 START=$(done_n)
 resub(){ [[ $RESUB -eq 1 ]] && return; RESUB=1; local d; d=$(done_n)
@@ -190,5 +206,10 @@ print("\n  Paper's peak is TV=0.2 on Qwen-VL-Chat (77.78). Does ours peak there 
 PY
 
 echo ""; echo "$L markers: $(done_n)"
-resub end
+if (( $(done_n) >= 28 )); then
+  echo "$L COMPLETE - handing the GPU to the MM-SafetyBench n=1680 run"
+  chain_to jobs/t1_mm1680.sh ub_mm1680
+else
+  resub end
+fi
 echo "$L finished $(date)"
