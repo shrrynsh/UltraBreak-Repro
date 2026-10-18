@@ -1,0 +1,290 @@
+# Every table in the paper, next to ours
+
+**As of 2026-10-18.** One section per numbered table in UltraBreak (arXiv 2602.01025).
+Paper values extracted from `arxiv.org/html/2602.01025v1` and recorded in
+[`paper_specs.md`](paper_specs.md); ours come from this repo's `results/`.
+
+**Reading the numbers.** Ours are **judge v3** (our corrected scorer) unless a column says
+v1. The paper's scorer is closest to our **v1** — where the two differ we say so, because
+the gap is not constant (+1 to +13 points depending on the run; see
+[`DISCREPANCIES.md`](DISCREPANCIES.md) D12). Our AdvBench is the **normalised** "Steps to …"
+form, which is UltraBreak's own protocol (D13) — the raw-imperative form scores ~58 points
+lower and is reported separately in §1b. Our MM-SafetyBench is a seed-0 stratified **520-row
+subsample** of the full 1680 (binomial SE ≈ 2.2 pts).
+
+| Paper table | What it is | Status |
+|---|---|---|
+| [1](#table-1) | Main results, 5 methods × 6 models × 3 benchmarks | ✅ reproduced |
+| [2](#table-2) | StrongREJECT scores | ⬜ blocked — native 0–1 scorer unavailable |
+| [3](#table-3) | Component ablation | 🟡 white-box column only |
+| [4](#table-4) | Hyperparameters | ✅ matched |
+| [5](#table-5) | Affirming-phrase sensitivity | ✅ reproduced |
+| [6](#table-6) | TV-weight sweep | ⬜ not comparable — different victims |
+| 7 | Qualitative attack examples | n/a — no numbers, harmful content not reproduced |
+| 8 | *does not exist* | — |
+| [9](#table-9) | Frontier commercial models | 🚫 paid API |
+| [10](#table-10) | Compute overhead | ✅ reproduced |
+
+---
+
+## Table 1 {#table-1}
+
+**Paper caption:** ASR (%) across target models and benchmarks. Qwen2-VL-7B is the
+white-box surrogate; the other five are black-box.
+
+### 1a. SafeBench
+
+| Method | Qwen2-VL* | Qwen-VL-Chat | Qwen2.5-VL | LLaVA-1.6 | Kimi-VL | GLM-4.1V |
+|---|---|---|---|---|---|---|
+| No Attack — **paper** | 18.41 | 22.86 | 14.29 | 80.32 | 39.37 | 46.03 |
+| No Attack — **ours** | 13.02 | 7.30 | 18.10 | 57.14 | 33.02 | 53.02 |
+| FigStep — **paper** | 44.76 | 69.52 | 53.97 | 47.94 | 73.02 | 88.25 |
+| FigStep — **ours** | 68.25 | 70.16 | 63.17 | 55.56 | 77.78 | 83.49 |
+| VAJM — **paper** | 0.95 | 12.06 | 28.89 | 57.46 | 41.27 | 67.62 |
+| VAJM — **ours** | 12.06 | 6.35 | 22.54 | 59.68 | 33.65 | 50.79 |
+| UMK — **paper** | **97.78** | 0.63 | 15.24 | 20.63 | 12.70 | 50.79 |
+| UMK — **ours** | **1.27** | 3.17 | 20.00 | 61.27 | 32.06 | 60.95 |
+| UltraBreak — **paper** | 81.59 | 72.70 | 60.32 | 88.25 | 67.94 | 66.03 |
+| UltraBreak — **ours, released image** | **78.73** (v1 **81.59**) | 77.14 | 53.65 | **88.25** | 69.84 | 60.32 |
+| UltraBreak — ours, code-faithful retrain | 73.02 | 60.32 | 26.98 | 85.40 | 65.08 | 58.73 |
+| UltraBreak — ours, paper-faithful retrain | 64.13 | 68.89 | 26.03 | 87.62 | 60.95 | 60.95 |
+
+**The released artifact reproduces exactly** — 81.59 under the authors' own judge, to the
+decimal, and LLaVA 88.25 likewise. Our *retrains* reach the easy targets but miss Qwen2.5-VL
+badly (27 vs 60); that gap is the study's main open scientific question.
+
+### 1b. AdvBench
+
+| Method | Qwen2-VL* | Qwen-VL-Chat | Qwen2.5-VL | LLaVA-1.6 | Kimi-VL | GLM-4.1V |
+|---|---|---|---|---|---|---|
+| No Attack — **paper** | 0.38 | 1.92 | 0.00 | 21.35 | 4.42 | 2.12 |
+| No Attack — **ours** | 1.35 | 3.46 | 0.77 | 48.65 | 3.46 | 9.81 |
+| VAJM — **paper** | 0.38 | 0.96 | 0.38 | 19.42 | 3.65 | 3.65 |
+| VAJM — **ours** | 0.19 | 1.15 | 0.96 | 21.15 | 3.46 | 3.08 |
+| UMK — **paper** | **70.00** | 0.38 | 2.69 | 16.35 | 2.12 | 4.42 |
+| UMK — **ours** | **0.58** | 0.96 | 1.73 | 27.69 | 4.42 | 5.00 |
+| UltraBreak — **paper** | 72.69 | 71.92 | 35.77 | 92.88 | 30.38 | 30.00 |
+| UltraBreak — **ours, released image** | 67.69 (v1 **74.62**) | 75.00 | 25.19 | 93.85 | 28.85 | 24.04 |
+| UltraBreak — ours, code-faithful | 22.50 | 38.85 | 2.12 | 89.62 | 27.50 | 21.73 |
+| UltraBreak — ours, paper-faithful | 10.19 | 75.00 | 1.73 | 91.15 | 29.62 | 19.81 |
+
+**VAJM reproduces almost cell for cell here.** Note the whole table presumes the
+normalised prompt form: on the **raw** AdvBench imperatives the same released image scores
+**9.62**, not 67.69 — a 58-point swing from wording alone (D13).
+
+### 1c. MM-SafetyBench
+
+| Method | Qwen2-VL* | Qwen-VL-Chat | Qwen2.5-VL | LLaVA-1.6 | Kimi-VL | GLM-4.1V |
+|---|---|---|---|---|---|---|
+| No Attack — **paper** | 26.19 | 21.49 | 33.45 | 35.06 | 41.79 | 43.69 |
+| No Attack — **ours** | 22.88 | 18.27 | 22.88 | 48.08 | 39.81 | 54.42 |
+| VAJM — **paper** | 5.42 | 11.73 | 26.79 | 30.18 | 35.36 | 36.73 |
+| VAJM — **ours** | 20.19 | 28.46 | 27.88 | 48.65 | 36.73 | 52.12 |
+| UMK — **paper** | **54.76** | 5.48 | 17.56 | 21.96 | 26.67 | 37.44 |
+| UMK — **ours** | **18.08** | 15.19 | 23.46 | 44.04 | 34.04 | 56.54 |
+| UltraBreak — **paper** | 57.26 | 53.10 | 45.83 | 71.90 | 54.58 | 67.08 |
+| UltraBreak — **ours, released image** | 37.31 | 55.96 | 48.08 | 74.62 | 54.42 | **63.85** |
+| UltraBreak — ours, code-faithful | 37.50 | 47.88 | 35.96 | 71.92 | 35.96 | 57.88 |
+| UltraBreak — ours, paper-faithful | 33.85 | 40.96 | 35.38 | 72.31 | 35.96 | 57.31 |
+
+Five of six UltraBreak cells land close; only the white-box Qwen2-VL runs 20 points low.
+
+### The UMK column is a different experiment
+
+| UMK on Qwen2-VL | ours | paper | delta |
+|---|---|---|---|
+| SafeBench | 1.27 | 97.78 | **−96.5** |
+| AdvBench | 0.58 | 70.00 | **−69.4** |
+| MM-SafetyBench | 18.08 | 54.76 | **−36.7** |
+
+Across the five **black-box** columns our UMK agrees to a mean absolute error of 10.5 points
+and is often *higher* than the paper. The failure is confined to the surrogate column, and
+the cause is mechanical: **UMK optimises a GCG text suffix in the surrogate's token-embedding
+space.** The paper ran UMK **white-box on Qwen2-VL**; ours is cross-architecture from
+Vicuna-13B, so the suffix carries no meaning to Qwen2-VL. Full argument in
+[`baselines/README.md`](baselines/README.md). VAJM shows no such profile — the paper's VAJM is
+*worst* on Qwen2-VL (0.95, below its own No-Attack 18.41), so **the two baselines are not
+measured under the same threat model and the table does not say so.**
+
+---
+
+## Table 2 {#table-2}
+
+**Paper caption:** Average StrongREJECT scores (0–1) on open-source VLMs, AdvBench.
+
+| Target | No Attack | VAJM | UMK | Ours (paper) |
+|---|---|---|---|---|
+| Qwen2-VL-7B | 0.00 | 0.00 | 0.36 | 0.45 |
+| Qwen-VL-Chat | 0.02 | 0.01 | 0.00 | 0.55 |
+| Qwen2.5-VL-7B | 0.02 | 0.04 | 0.04 | 0.27 |
+| LLaVA-1.6 | 0.18 | 0.18 | 0.12 | 0.79 |
+| GLM-4.1V | 0.02 | 0.03 | 0.04 | 0.19 |
+
+**Not reproduced — and not for want of running it.** We scored the StrongREJECT *prompt set*
+(313 rows) with the HarmBench classifier for the released image and four retrains
+(`results/ext_*_strongreject_*`), but that yields a **binary ASR**, not StrongREJECT's
+**0–1 willingness × ability** score. The native scorer needs an OpenAI key or the finetuned
+SR evaluator model, neither of which is available here, so the two quantities are not
+comparable and we do not pretend otherwise. Our HarmBench-judged figures, for reference:
+released image **29.71%**, job 809 **21.73%** (v3, Qwen2-VL).
+
+---
+
+## Table 3 {#table-3}
+
+**Paper caption:** ASR (%) of UltraBreak and its ablated variants on SafeBench and AdvBench.
+Note the paper's Table 3 omits Kimi-VL and averages over 5 models.
+
+### SafeBench
+
+| Variant | paper Qwen2-VL* | **ours Qwen2-VL*** | paper Qwen-VL-Chat | paper Qwen2.5 | paper LLaVA | paper GLM |
+|---|---|---|---|---|---|---|
+| w/o Jailbreak Image | 15.87 | **13.02** | 51.11 | 12.38 | 92.06 | 7.62 |
+| w/o Constraints | 89.84 | **31.75** | 49.21 | 27.30 | 83.81 | 47.62 |
+| w/o Semantic Loss (CE) | 72.38 | **67.94** | 56.83 | 20.32 | 85.71 | 60.32 |
+| w/o Attention Weighting | 68.25 | **14.60** | 42.54 | 37.78 | 79.37 | 70.48 |
+| Proposed | 81.59 | **83.49** | 72.70 | 60.32 | 88.25 | 66.03 |
+
+### AdvBench
+
+| Variant | paper Qwen2-VL* | **ours Qwen2-VL*** |
+|---|---|---|
+| w/o Jailbreak Image | 10.19 | **1.35** |
+| w/o Constraints | 63.27 | **2.12** |
+| w/o Semantic Loss (CE) | 57.69 | **15.77** |
+| w/o Attention Weighting | 47.50 | **1.15** |
+| Proposed | 72.69 | **39.04** |
+
+**Partially reproduces, with one clear disagreement.** Our *Proposed* SafeBench (83.49)
+slightly exceeds the paper's 81.59, and CE is close (67.94 vs 72.38). But **"w/o
+Constraints" and "w/o Attention Weighting" are far more damaging in our hands** — 31.75 and
+14.60 against the paper's 89.84 and 68.25. In the paper, removing the constraints *raises*
+SafeBench ASR above the proposed method on the white-box model (89.84 > 81.59); in ours it
+roughly halves it. Our ablations are trained with the D11 fix at 3000 steps, so they are not
+budget-starved.
+
+Only the white-box column is filled: each ablation produced one patch, evaluated on
+Qwen2-VL. Filling the other four columns is ~20 transfer evals and no new training.
+
+Also worth noting: **the paper's own Table 1 and Table 3 disagree.** Table 1 gives No-Attack
+SafeBench on Qwen2-VL as **18.41**; Table 3's "w/o Jailbreak Image" gives **15.87**. Same
+quantity, two values.
+
+---
+
+## Table 4 {#table-4}
+
+**Paper caption:** Hyperparameters used in UltraBreak (Appendix C.1).
+
+| Parameter | Paper | Ours | Match |
+|---|---|---|---|
+| Location min / max | 0 / 112 | 0 / 112 | ✅ |
+| Rotation min / max | −15° / +15° | −15° / +15° | ✅ |
+| Scale min / max | 0.8 / 1.2 | 0.8 / 1.2 | ✅ |
+| TV weight λ_TV | 0.5 | 0.5 | ✅ |
+| Embedding noise ε | 1e-4 | 1e-4 | ✅ |
+| Attention temperature τ | 0.5 | 0.5 | ✅ |
+| Affirming phrase | `[Jailbroken Mode]` | `[Jailbroken Mode]` | ✅ |
+| Learning rate η | 0.01 | 0.01 | ✅ |
+| **Iterations** | **1300** | 1300 (paper-faithful) · **3000** (job 809) | ⚠️ |
+| Image size | 224×224 | 224×224 | ✅ |
+
+Every hyperparameter matches. **The one deviation is deliberate and is a finding**: at the
+paper's stated 1300 iterations our fixed retrain reaches only 23.49% SafeBench; it needs
+**3000** to reach 83.49%. So the D11 normalisation bug is *necessary but budget-gated* —
+fixing it alone is not enough at the paper's own iteration count (D11, `DISCREPANCIES.md`).
+
+---
+
+## Table 5 {#table-5}
+
+**Paper caption:** Effect of the affirming phrase. GLM-4.1V-9B-Thinking, SafeBench.
+
+| Affirming phrase | Paper | **Ours (v3)** | Ours (v1) | Δ vs paper |
+|---|---|---|---|---|
+| `[Jailbroken Mode]` | 66.03 | **60.63** | 64.44 | −5.4 |
+| `[ACCESS AUTHORISED]` | 72.06 | **54.60** | 55.56 | −17.5 |
+| `[CLASSIFIED INFO]` | 66.98 | **59.68** | 61.27 | −7.3 |
+
+**Largely reproduces.** All three land in a tight 54.6–60.6 band, which is the qualitative
+claim — the attack is only mildly sensitive to the exact phrase. The *ordering* still differs
+(paper ACCESS > CLASSIFIED > JBM; ours JBM > CLASSIFIED > ACCESS), and judge choice does not
+explain it: v1 preserves our ordering.
+
+This table was the study's worst-looking result until **D14** was fixed. At the old
+`max_new_tokens=512`, GLM was truncated mid-`<think>` on most rows and these read
+39.1 / 30.5 / 32.7 — ~30 points low. The token budget, not the method, was the cause.
+
+---
+
+## Table 6 {#table-6}
+
+**Paper caption:** SafeBench ASR (%) varying the TV loss weight. Victims: **Qwen-VL-Chat and
+GLM-4.1V** (transfer), not the surrogate.
+
+| TV weight | paper Qwen-VL-Chat | paper GLM-4.1V | paper avg | **ours — white-box Qwen2-VL** |
+|---|---|---|---|---|
+| 0 | 61.27 | 70.48 | 65.88 | **31.75** |
+| 0.2 | 77.78 | 66.98 | 72.38 | **40.00** |
+| 0.5 | 72.70 | 66.03 | 69.37 | **83.49** |
+| 1 | 65.40 | 60.95 | 63.18 | **56.51** |
+
+**Not comparable, and an earlier claim of ours is retracted.** The paper sweeps TV and
+measures **transfer to Qwen-VL-Chat and GLM**; we swept TV and measured the **white-box
+Qwen2-VL**. Different models, different quantities. An earlier note here said "the paper's
+TV=0.2 peak is contradicted (we get 0.5)" — that compared the wrong things and **is
+withdrawn as a Table 6 verdict**.
+
+What our sweep does show, as a separate and still-valid fact: **on the white-box surrogate
+the TV optimum is ≈0.5**, and the curve is non-monotonic. Converting this to a real Table 6
+verdict needs only transfer evals of the three existing TV patches on Qwen-VL-Chat and GLM —
+no new training. Cheapest open item in the study.
+
+---
+
+## Table 9 {#table-9}
+
+**Paper caption:** ASR (%) on frontier commercial models, SafeBench/AdvBench subset.
+
+| Model | No Attack | VAJM | UMK | UltraBreak |
+|---|---|---|---|---|
+| GPT-5 | 24.00 | 24.00 | 24.00 | 26.00 |
+| claude-sonnet-4.5 | 30.00 | 20.00 | 16.00 | 20.00 |
+
+**🚫 Not attempted — paid API.** Generation code for the closed models is written and
+error-wrapped in `evaluation/attack.py`, but no keys are configured. Reported as **untested,
+not omitted**.
+
+Worth observing even without running it: in the paper's own numbers UltraBreak **+2 points
+over No Attack on GPT-5** and is **10 points below No Attack on Claude Sonnet 4.5**. On
+frontier models the attack does not work, and the paper's table says so.
+
+---
+
+## Table 10 {#table-10}
+
+**Paper caption:** Optimisation time per iteration (NVIDIA H100).
+
+| Method | Paper (H100) | Ours — micro-benchmark (RTX 6000 Ada) | Ours — whole-run wall-clock |
+|---|---|---|---|
+| Cross-Entropy | 6.44 s | 0.24 s | 12.93 s/epoch |
+| UltraBreak (semantic) | 7.55 s | 0.26 s | 14.32 s/epoch |
+| **ratio** | **1.17×** | **1.08×** | **1.11×** |
+
+**Reproduces.** Absolute times are not comparable across GPUs — and our two methods measure
+different units (one row forward+backward vs a full 50-row epoch) — so the ratio is the
+quantity, as the paper itself implies. Two independent measurements agree: **1.08× and
+1.11×** against 1.17×. Breakdown of our ~11%: ≈6.5 points from the input-space constraints,
+≈4 from attention-mode over token-mode.
+
+---
+
+## Figures
+
+Not tables, listed for completeness: **Fig 2a** (model-size transfer) ✅ 2B/7B done, 32B
+dropped by decision; **Fig 2b** (surrogate choice) 🟡 unblocked — the LLaVA adapter's missing
+`return` is fixed, ~8 GPU-h to train; **Fig 3** (text-like patterns) ✅ reproduced *with
+measured texture statistics* — the unconstrained ablation is 4.3× rougher with 3.5× less
+stroke-scale energy; **Fig 4/5** (loss landscapes) ✅; **Fig 6** (first-token distribution)
+✅ entropy 1.3 → 3.3 nats with τ. Detail in
+[`analysis_figures/README.md`](analysis_figures/README.md).

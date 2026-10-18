@@ -48,7 +48,7 @@ Full status of every paper table/figure in **[`repro_notes/REPRO_CHECKLIST.md`](
 
 | path | what |
 |---|---|
-| [`repro_notes/`](repro_notes) | the study: `REPRO_CHECKLIST.md`, `DISCREPANCIES.md` (D1–D13), `FINDINGS.md`, `author_email_draft.md` |
+| [`repro_notes/`](repro_notes) | the study: **[`TABLES.md`](repro_notes/TABLES.md)** (every paper table vs ours), `REPRO_CHECKLIST.md`, `DISCREPANCIES.md` (D1–D14), `FINDINGS.md`, `baselines/`, `author_email_draft.md` |
 | [`jobs/`](jobs) | all SLURM job scripts + [index](jobs/README.md) mapping each to its result |
 | [`ext_benchmarks/`](ext_benchmarks) | StrongREJECT + HarmBench scoring (self-contained: data, download scripts, READMEs, job) |
 | `optimisation/` | training — model adapters + `optimise_proj.py` (D11 fix, ablation flags) |
