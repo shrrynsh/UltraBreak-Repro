@@ -16,10 +16,10 @@ subsample** of the full 1680 (binomial SE ≈ 2.2 pts).
 |---|---|---|
 | [1](#table-1) | Main results, 5 methods × 6 models × 3 benchmarks | ✅ reproduced |
 | [2](#table-2) | StrongREJECT scores | ⬜ blocked — native 0–1 scorer unavailable |
-| [3](#table-3) | Component ablation | 🟡 **26/50 cells** — 24 transfer evals outstanding |
+| [3](#table-3) | Component ablation | 🟡 **26/50 cells, and the ablations are at the wrong budget** — retraining at 1300 iters (job 9134) |
 | [4](#table-4) | Hyperparameters | ✅ matched |
 | [5](#table-5) | Affirming-phrase sensitivity | ✅ reproduced |
-| [6](#table-6) | TV-weight sweep | 🟡 **2/8 cells** — TV=0.5 matches; 6 evals outstanding |
+| [6](#table-6) | TV-weight sweep | 🟡 **2/8 cells, same budget problem** — TV=0.5 matches; retraining at 1300 iters (job 9134) |
 | 7 | Qualitative attack examples | n/a — no numbers, harmful content not reproduced |
 | 8 | *does not exist* | — |
 | [9](#table-9) | Frontier commercial models | 🚫 paid API |
@@ -132,6 +132,19 @@ released image **29.71%**, job 809 **21.73%** (v3, Qwen2-VL).
 
 ## Table 3 {#table-3}
 
+> ### ⚠️ The ablation patches below are NOT at the paper's budget
+>
+> Every `full50_abl_*` patch was trained at **3001 epochs**; paper Table 4 states
+> **1300 iterations**. So the "ours" ablation cells on this page are neither
+> code-faithful nor paper-faithful — they are our own best-known-good configuration at
+> 2.3× the paper's budget, which is very likely why the disagreement below is as large
+> as it is. **Comparing them to the paper's ablations compares two training budgets.**
+>
+> `jobs/t36_paperfaithful.sh` (job 9134) retrains all six variants at **1300 iterations**
+> with everything else matching Table 4 and the existing `repro_paper_faithful_1300`
+> anchor, then re-evaluates. These tables will be replaced by those numbers.
+
+
 **Paper caption:** ASR (%) of UltraBreak and its ablated variants on SafeBench and AdvBench.
 Note the paper's Table 3 omits Kimi-VL and averages over 5 models.
 
@@ -234,6 +247,19 @@ This table was the study's worst-looking result until **D14** was fixed. At the 
 ---
 
 ## Table 6 {#table-6}
+
+> ### ⚠️ The ablation patches below are NOT at the paper's budget
+>
+> Every `full50_abl_*` patch was trained at **3001 epochs**; paper Table 4 states
+> **1300 iterations**. So the "ours" ablation cells on this page are neither
+> code-faithful nor paper-faithful — they are our own best-known-good configuration at
+> 2.3× the paper's budget, which is very likely why the disagreement below is as large
+> as it is. **Comparing them to the paper's ablations compares two training budgets.**
+>
+> `jobs/t36_paperfaithful.sh` (job 9134) retrains all six variants at **1300 iterations**
+> with everything else matching Table 4 and the existing `repro_paper_faithful_1300`
+> anchor, then re-evaluates. These tables will be replaced by those numbers.
+
 
 **Paper caption:** SafeBench ASR (%) varying the TV loss weight. Victims: **Qwen-VL-Chat and
 GLM-4.1V** (transfer), not the surrogate.
