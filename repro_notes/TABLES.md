@@ -326,6 +326,49 @@ quantity, as the paper itself implies. Two independent measurements agree: **1.0
 
 ---
 
+
+---
+
+## Training-budget audit (2026-10-18)
+
+Prompted by a reader catching that the Table 3 ablations were not at the paper's budget.
+Every trained artifact in the study was then checked against **paper Table 4: 1300
+iterations, lr 0.01, TV 0.5, τ 0.5**. **10 of 16 were off-budget**, all at 3001 epochs.
+
+| artifact | epochs | feeds | action |
+|---|---|---|---|
+| `full50_abl_noconstraints` | 3001 | Table 3, Table 6 (TV=0) | **retraining @1300** — job 9134 |
+| `full50_abl_ce` | 3001 | Table 3 | **retraining @1300** — job 9134 |
+| `full50_abl_token` | 3001 | Table 3 | **retraining @1300** — job 9134 |
+| `full50_abl_tv0p2` | 3001 | Table 6 | **retraining @1300** — job 9134 |
+| `full50_abl_tv1p0` | 3001 | Table 6 | **retraining @1300** — job 9134 |
+| `c2a_qwen2b_s3000` | 3001 | **Fig 2a** | **retraining @1300** — job 9135 |
+| `c2b_llava_surrogate_s3000` | 3001 (never trained) | **Fig 2b** | **training @1300** — job 9135 |
+| `full50_normfix_lr0p01_s3000` | 3001 | job 809 — our headline retrain, A4 transfer, Fig 3 | **kept, deliberately.** 1300 does not work; that *is* the D11 budget-gating finding. Never label it paper-config. |
+| `full50_proj_projfix_s3000` | 3001 | D1 projection diagnostic | kept — our own experiment, not a paper table |
+| `full50_proj_doublesquash_s3000` | 3001 | D1 projection diagnostic | kept — same |
+
+**On budget already:** `repro_paper_faithful_1300`, `codefaithful_exact_1300`,
+`full50_normfix_noproj_seed0`, `full50_normfix_lr0p003_s1300`, `c6_tau_inf_s1300`,
+`full50_proj_unclamped_{unit,img}init`.
+
+**What this does not touch.** Tables that use no patch we trained are unaffected:
+**Table 1**'s UltraBreak row (the authors' released `ultrabreak.png`, plus our two
+*labelled* branches `cmp_cf_*`/`cmp_pf_*`, both at 1300), **Table 5** (released image),
+**Table 2** (released image), **Table 4** (descriptive), **Table 10** (a per-step time
+ratio, independent of total steps), **FigStep** (authors' released images), and
+**No-Attack** (no patch).
+
+**Outstanding after 9134/9135 land:** Fig 3's texture comparison currently mixes
+3000-step and released patches; it should be regenerated against the 1300-step ablations
+so the contrast is at a matched budget.
+
+### The rule this establishes
+
+A patch trained at a budget the paper does not state cannot be used to reproduce a paper
+table — only to report *our own* result, labelled as such. Job 809 is the one deliberate
+exception and it is a finding in its own right, not a reproduction.
+
 ## Figures
 
 Not tables, listed for completeness: **Fig 2a** (model-size transfer) ✅ 2B/7B done, 32B
