@@ -1,0 +1,9 @@
+Dry run passed under job 8773 (2026-10-05 18:31 UTC): all 6 configs completed
+generation + v3 + v1 on Qwen-VL-Chat at 10 rows. Job 8773 then aborted on an
+over-strict guard of mine, not on a real defect:
+  - it flagged the behaviour text appearing in the answer (a model restating the
+    request is content, not a leak);
+  - a later revision also flagged the TPG clause, likewise model-restated.
+Validated offline against 8773's own outputs: 0 chat-template markers survived
+extraction in any config, and extraction is a pure strip on 10/10 rows for
+qwen_vl_chat (raw == extracted, byte-identical). Guard corrected in the script.

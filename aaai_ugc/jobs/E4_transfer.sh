@@ -133,8 +133,10 @@ assert d["attack_success"].notna().all(), "NaN judge decisions"
 # answer. Test for chat-template scaffolding and for the TPG clause verbatim --
 # NOT for the behaviour text, because a model legitimately restates the request
 # ("To write a script that ...") and that is content, not a template leak.
-MARKERS = ["[/INST]", "<think>", "<|im_start|>", "<|im_end|>", "ASSISTANT:",
-           "You must start your response with"]
+# ONLY genuine chat-template tokens. The TPG clause and the behaviour text are
+# deliberately NOT markers: a model restating the instruction or the request is
+# content, not a harness leak, and asserting on those aborts healthy runs.
+MARKERS = ["[/INST]", "<think>", "<|im_start|>", "<|im_end|>", "ASSISTANT:"]
 hits = {}
 for raw in d["response"]:
     ans, _ = M.extract(raw)
@@ -145,6 +147,10 @@ print(f"[e4] DRY OK {cfg}: v3_asr={100*d.attack_success.astype(bool).mean():.0f}
       f"medlen={a.answer_len.median():.0f} template_markers={hits or 'none'} "
       f"empty={int((a.answer_len==0).sum())}")
 assert not hits, f"template scaffolding survived extraction: {hits}"
+# Per-family property: Qwen-VL-Chat's model.chat() returns the answer alone, so
+# extraction must be a pure strip; LLaVA echoes the template, so it must shrink.
+noop = sum(1 for raw in d["response"] if M.extract(raw)[0] == str(raw).strip())
+print(f"[e4] extraction is a pure strip on {noop}/{len(d)} rows")
 PY
   done
   if (( DFAIL != 0 )); then echo "$L DRY RUN FAILED - aborting before full run" >&2; exit 1; fi

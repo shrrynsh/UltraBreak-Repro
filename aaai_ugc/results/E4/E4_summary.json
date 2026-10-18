@@ -1,6 +1,6 @@
 {
-  "git_commit": "d0c8eff",
-  "run_utc": "2026-10-05T16:34:57.128977+00:00",
+  "git_commit": "5b4bf53",
+  "run_utc": "2026-10-10T10:59:46.463711+00:00",
   "adv_ids_file": "E1_ids.txt",
   "sb_ids_file": "E4b_ids.txt",
   "n_per_cell": 150,
@@ -12,6 +12,22 @@
       "uplift_tpg_on": 42.666666666666664,
       "uplift_tpg_off": 4.666666666666666,
       "template_interaction_pts": 38.0
+    },
+    "qvlchat": {
+      "key_contrast_pts": 38.0,
+      "uplift_bare": 19.333333333333332,
+      "uplift_steps": 57.333333333333336,
+      "template_interaction_pts": 47.33333333333333,
+      "uplift_tpg_on": 54.666666666666664,
+      "uplift_tpg_off": 7.333333333333335
+    },
+    "llava": {
+      "key_contrast_pts": -8.666666666666679,
+      "uplift_bare": 26.0,
+      "uplift_steps": 17.33333333333332,
+      "template_interaction_pts": 22.666666666666664,
+      "uplift_tpg_on": 7.333333333333325,
+      "uplift_tpg_off": -15.333333333333337
     }
   }
 }
