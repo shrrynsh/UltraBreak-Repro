@@ -329,6 +329,68 @@ quantity, as the paper itself implies. Two independent measurements agree: **1.0
 
 ---
 
+---
+
+## Protocol audit — does each table follow the paper's own protocol?
+
+Prompted by a reader catching that the Table 3 ablations were trained at 3001 epochs
+against the paper's stated 1300. Extending that check to **every** protocol dimension of
+every table, not just iteration count.
+
+| Table | corpus / budget | eval set | prompt form | judge | verdict |
+|---|---|---|---|---|---|
+| **1** SafeBench | 1300 iters ✅ (`cmp_pf_*`); released image needs none | **315** ✅ | TPG ✅ | v1 ≈ paper ✅ | **strict** |
+| **1** AdvBench | as above | **520** ✅ | normalised ✅ (the paper's own D13 form) | ✅ | **strict** |
+| **1** MM-Safety | as above | **520 ✗ — the paper uses 1680** | ✅ | ✅ | **deviation — being fixed, job 9136** |
+| **2** StrongREJECT | released image ✅ | 313 ✅ | ✅ | ✗ native 0–1 scorer unavailable | blocked, documented |
+| **3** ablations | **3001 ✗ → 1300** | 315 / 520 ✅ | ✅ | ✅ | **being fixed, job 9134** |
+| **4** hyperparameters | descriptive | — | — | — | **strict** (every value matches) |
+| **5** phrases | released image ✅ | 315 ✅ | ✅ | ✅ | **strict** |
+| **6** TV sweep | **3001 ✗ → 1300** | 315 ✅ | ✅ | ✅ | **being fixed, job 9134** |
+| **10** overhead | a per-step *ratio* — independent of total steps | — | — | — | **strict** |
+
+### The eval-set sizes are not guesses
+
+For each benchmark we solved for the denominators consistent with **every** value the paper
+reports (2 dp, N ∈ [50, 2000]):
+
+| benchmark | denominators consistent with all reported values | ours |
+|---|---|---|
+| SafeBench | 315, 630, 945, … (multiples) | **315** ✅ |
+| AdvBench | 520, 1040, 1560 | **520** ✅ |
+| **MM-SafetyBench** | **1680 — unique solution** | **520** ✗ |
+
+1680 is the only denominator in that whole range consistent with all 24 reported
+MM-SafetyBench values. Our 520 stratified subsample is an unbiased estimator carrying
+≈2.2 points of sampling error — fine for ranking, **not** for a reproduction claim. Job
+9136 re-runs the column at 1680 (40,320 generations, ~71 GPU-h) and prints how far each
+520-row estimate sat from the full-set value.
+
+### A limit on *any* strict reproduction here
+
+Four of the six evaluated models sample, and `evaluation/attack.py` sets **no seed**:
+
+| model | `do_sample` | top_k | top_p | temp | |
+|---|---|---|---|---|---|
+| Qwen2-VL-7B | true | **1** | 0.001 | 0.01 | deterministic (argmax-equivalent) |
+| LLaVA-1.6 | false | — | — | — | deterministic (greedy) |
+| Qwen2.5-VL-7B | true | — | — | 1e-06 | deterministic in practice |
+| **Qwen-VL-Chat** | true | 0 | 0.3 | — | **stochastic** |
+| **Kimi-VL** | true | — | — | 0.2 | **stochastic** |
+| **GLM-4.1V** | true | **2** | 0.6 | 0.8 | **stochastic** |
+
+This is not theoretical. `b15_jbm_safebench` and `cmp_img_sb315` are **byte-identical
+configs**, and GLM scored **191/315** on one and **190/315** on the other — a re-run of the
+same experiment disagreeing with itself by one row.
+
+So three of Table 1's six columns are **single unseeded draws**, in the paper as much as
+here, and no confidence interval anywhere accounts for decoding variance. Our Wilson
+intervals cover sampling of *queries*, not of *decodings*. Quantifying it would mean
+repeating one config n times per model; until then, differences of a point or two on
+Qwen-VL-Chat, Kimi or GLM should not be read as real.
+
+---
+
 ## Training-budget audit (2026-10-18)
 
 Prompted by a reader catching that the Table 3 ablations were not at the paper's budget.
