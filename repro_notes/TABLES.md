@@ -16,10 +16,10 @@ subsample** of the full 1680 (binomial SE ≈ 2.2 pts).
 |---|---|---|
 | [1](#table-1) | Main results, 5 methods × 6 models × 3 benchmarks | ✅ reproduced |
 | [2](#table-2) | StrongREJECT scores | ⬜ blocked — native 0–1 scorer unavailable |
-| [3](#table-3) | Component ablation | 🟡 white-box column only |
+| [3](#table-3) | Component ablation | 🟡 **26/50 cells** — 24 transfer evals outstanding |
 | [4](#table-4) | Hyperparameters | ✅ matched |
 | [5](#table-5) | Affirming-phrase sensitivity | ✅ reproduced |
-| [6](#table-6) | TV-weight sweep | ⬜ not comparable — different victims |
+| [6](#table-6) | TV-weight sweep | 🟡 **2/8 cells** — TV=0.5 matches; 6 evals outstanding |
 | 7 | Qualitative attack examples | n/a — no numbers, harmful content not reproduced |
 | 8 | *does not exist* | — |
 | [9](#table-9) | Frontier commercial models | 🚫 paid API |
@@ -137,34 +137,50 @@ Note the paper's Table 3 omits Kimi-VL and averages over 5 models.
 
 ### SafeBench
 
-| Variant | paper Qwen2-VL* | **ours Qwen2-VL*** | paper Qwen-VL-Chat | paper Qwen2.5 | paper LLaVA | paper GLM |
-|---|---|---|---|---|---|---|
-| w/o Jailbreak Image | 15.87 | **13.02** | 51.11 | 12.38 | 92.06 | 7.62 |
-| w/o Constraints | 89.84 | **31.75** | 49.21 | 27.30 | 83.81 | 47.62 |
-| w/o Semantic Loss (CE) | 72.38 | **67.94** | 56.83 | 20.32 | 85.71 | 60.32 |
-| w/o Attention Weighting | 68.25 | **14.60** | 42.54 | 37.78 | 79.37 | 70.48 |
-| Proposed | 81.59 | **83.49** | 72.70 | 60.32 | 88.25 | 66.03 |
+Paper row above, ours below. **Ours is 5 models where available; `·` marks a cell not yet run.**
+
+| Variant | Qwen2-VL* | Qwen-VL-Chat | Qwen2.5-VL | LLaVA-1.6 | GLM-4.1V |
+|---|---|---|---|---|---|
+| w/o Jailbreak Image — paper | 15.87 | 51.11 | 12.38 | 92.06 | 7.62 |
+| w/o Jailbreak Image — **ours** | **13.02** | **7.30** | **18.10** | **57.14** | **53.02** |
+| w/o Constraints — paper | 89.84 | 49.21 | 27.30 | 83.81 | 47.62 |
+| w/o Constraints — **ours** | **31.75** | · | · | · | · |
+| w/o Semantic Loss (CE) — paper | 72.38 | 56.83 | 20.32 | 85.71 | 60.32 |
+| w/o Semantic Loss (CE) — **ours** | **67.94** | · | · | · | · |
+| w/o Attention Weighting — paper | 68.25 | 42.54 | 37.78 | 79.37 | 70.48 |
+| w/o Attention Weighting — **ours** | **14.60** | · | · | · | · |
+| Proposed — paper | 81.59 | 72.70 | 60.32 | 88.25 | 66.03 |
+| Proposed (job 809) — **ours** | **83.49** | **76.51** | **36.51** | **89.84** | **64.76** |
 
 ### AdvBench
 
-| Variant | paper Qwen2-VL* | **ours Qwen2-VL*** |
-|---|---|---|
-| w/o Jailbreak Image | 10.19 | **1.35** |
-| w/o Constraints | 63.27 | **2.12** |
-| w/o Semantic Loss (CE) | 57.69 | **15.77** |
-| w/o Attention Weighting | 47.50 | **1.15** |
-| Proposed | 72.69 | **39.04** |
+| Variant | Qwen2-VL* | Qwen-VL-Chat | Qwen2.5-VL | LLaVA-1.6 | GLM-4.1V |
+|---|---|---|---|---|---|
+| w/o Jailbreak Image — paper | 10.19 | 10.38 | 0.38 | 91.15 | 2.12 |
+| w/o Jailbreak Image — **ours** | **1.35** | **3.46** | **0.77** | **48.65** | **9.81** |
+| w/o Constraints — paper | 63.27 | 27.69 | 2.31 | 80.00 | 9.42 |
+| w/o Constraints — **ours** | **2.12** | · | · | · | · |
+| w/o Semantic Loss (CE) — paper | 57.69 | 51.54 | 2.88 | 88.85 | 17.31 |
+| w/o Semantic Loss (CE) — **ours** | **15.77** | · | · | · | · |
+| w/o Attention Weighting — paper | 47.50 | 42.54 | 15.77 | 79.37 | 29.62 |
+| w/o Attention Weighting — **ours** | **1.15** | · | · | · | · |
+| Proposed — paper | 72.69 | 71.92 | 35.77 | 92.88 | 30.00 |
+| Proposed (job 809) — **ours** | **39.04** | **58.65** | **4.81** | **94.23** | **20.38** |
 
-**Partially reproduces, with one clear disagreement.** Our *Proposed* SafeBench (83.49)
-slightly exceeds the paper's 81.59, and CE is close (67.94 vs 72.38). But **"w/o
-Constraints" and "w/o Attention Weighting" are far more damaging in our hands** — 31.75 and
-14.60 against the paper's 89.84 and 68.25. In the paper, removing the constraints *raises*
-SafeBench ASR above the proposed method on the white-box model (89.84 > 81.59); in ours it
-roughly halves it. Our ablations are trained with the D11 fix at 3000 steps, so they are not
-budget-starved.
+**Status: 26 of 50 cells.** The two rows that need no extra work — *w/o Jailbreak Image*
+(the No-Attack baseline) and *Proposed* (the job-809 patch, already transferred in the
+transfer study) — are complete across all five models. The three true ablation rows exist
+only on the white-box column, because each ablation produced one patch that was evaluated
+on Qwen2-VL alone. **The missing 24 cells need no training — only transfer evals of patches
+already on disk** (`jobs/t36_fill.sh`).
 
-Only the white-box column is filled: each ablation produced one patch, evaluated on
-Qwen2-VL. Filling the other four columns is ~20 transfer evals and no new training.
+**Where we already disagree.** *w/o Constraints* and *w/o Attention Weighting* are far more
+damaging in our hands than the paper's — 31.75 and 14.60 against 89.84 and 68.25 on
+SafeBench. In the paper, removing the constraints *raises* white-box ASR above the proposed
+method (89.84 > 81.59); in ours it cuts it by more than half. Our ablations carry the D11
+fix and 3000 steps, so they are not budget-starved. Our *Proposed* row tracks the paper
+well on three of five models and misses Qwen2.5-VL badly (36.51 vs 60.32) — the same
+Qwen2.5 gap seen in Table 1.
 
 Also worth noting: **the paper's own Table 1 and Table 3 disagree.** Table 1 gives No-Attack
 SafeBench on Qwen2-VL as **18.41**; Table 3's "w/o Jailbreak Image" gives **15.87**. Same
@@ -222,12 +238,17 @@ This table was the study's worst-looking result until **D14** was fixed. At the 
 **Paper caption:** SafeBench ASR (%) varying the TV loss weight. Victims: **Qwen-VL-Chat and
 GLM-4.1V** (transfer), not the surrogate.
 
-| TV weight | paper Qwen-VL-Chat | paper GLM-4.1V | paper avg | **ours — white-box Qwen2-VL** |
-|---|---|---|---|---|
-| 0 | 61.27 | 70.48 | 65.88 | **31.75** |
-| 0.2 | 77.78 | 66.98 | 72.38 | **40.00** |
-| 0.5 | 72.70 | 66.03 | 69.37 | **83.49** |
-| 1 | 65.40 | 60.95 | 63.18 | **56.51** |
+| TV weight | paper Qwen-VL-Chat | **ours Qwen-VL-Chat** | paper GLM-4.1V | **ours GLM-4.1V** | ours white-box Qwen2-VL |
+|---|---|---|---|---|---|
+| 0 | 61.27 | · | 70.48 | · | 31.75 |
+| 0.2 | 77.78 | · | 66.98 | · | 40.00 |
+| **0.5** | 72.70 | **76.51** | 66.03 | **64.76** | 83.49 |
+| 1 | 65.40 | · | 60.95 | · | 56.51 |
+
+**Status: 2 of 8 cells.** The TV=0.5 row is free — that patch is job 809, already
+transferred to both of the paper's victims — and **both cells land close** (76.51 vs 72.70,
+64.76 vs 66.03). The other six need transfer evals of three existing patches; no training
+(`jobs/t36_fill.sh`).
 
 **Not comparable, and an earlier claim of ours is retracted.** The paper sweeps TV and
 measures **transfer to Qwen-VL-Chat and GLM**; we swept TV and measured the **white-box
