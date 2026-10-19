@@ -27,6 +27,26 @@ STAGE="${SLURM_TMPDIR:-/tmp}/umkq_${SLURM_JOB_ID:-manual}"; mkdir -p "$STAGE"
 ATTEMPT="${1:-1}"; MAX=6
 echo "$L start $(date) attempt $ATTEMPT/$MAX"
 
+
+# ── wall guard ────────────────────────────────────────────────────────────────
+# A bash trap does NOT interrupt a running foreground command - it is deferred
+# until that command returns. Our inner python runs for hours, so the USR1
+# pre-wall trap never executes and the job is SIGKILLed at the wall with no
+# handoff (exactly what killed job 9138 at 5/6 trainings). So check elapsed time
+# explicitly BETWEEN stages and hand off before starting one we cannot finish.
+WALL_LIMIT=86400          # 24h
+RESERVE_TRAIN=19800       # 5.5h - one 1300-iteration training measured ~4.4h
+RESERVE_EVAL=5400         # 1.5h - a single eval cell
+wall_left(){ echo $(( WALL_LIMIT - SECONDS )); }
+guard(){   # reserve label -> returns 1 if we should stop now
+  local need="$1" what="$2"
+  if (( SECONDS > WALL_LIMIT - need )); then
+    echo "$L wall: ${SECONDS}s used, $(wall_left)s left - not starting $what"
+    return 1
+  fi
+  return 0
+}
+
 RESUB=0
 resub(){ [[ $RESUB -eq 1 ]] && return; RESUB=1
   (( ATTEMPT >= MAX )) && { echo "$L MAX"; return; }
@@ -46,6 +66,7 @@ fi
 
 # ── Stage 1: 2000 joint image+suffix iterations on Qwen2-VL ────────────────
 if [[ ! -f "$OUT/bad_vlm_prompt.png" ]]; then
+  guard $RESERVE_TRAIN "UMK 2000-iteration training" || { resub; exit 0; }
   echo "$L ===== stage 1: UMK 2000 iters, surrogate = Qwen2-VL ====="
   python baselines/umk_qwen/umk_qwen2vl.py --n_iters 2000 --out "$OUT" \
     || { echo "$L training failed" >&2; resub; exit 1; }

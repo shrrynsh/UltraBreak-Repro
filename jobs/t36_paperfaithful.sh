@@ -69,6 +69,26 @@ chain_to(){   # script jobname
     || echo "$L chain submit FAILED: $n" >&2
 }
 
+
+# ── wall guard ────────────────────────────────────────────────────────────────
+# A bash trap does NOT interrupt a running foreground command - it is deferred
+# until that command returns. Our inner python runs for hours, so the USR1
+# pre-wall trap never executes and the job is SIGKILLed at the wall with no
+# handoff (exactly what killed job 9138 at 5/6 trainings). So check elapsed time
+# explicitly BETWEEN stages and hand off before starting one we cannot finish.
+WALL_LIMIT=86400          # 24h
+RESERVE_TRAIN=19800       # 5.5h - one 1300-iteration training measured ~4.4h
+RESERVE_EVAL=5400         # 1.5h - a single eval cell
+wall_left(){ echo $(( WALL_LIMIT - SECONDS )); }
+guard(){   # reserve label -> returns 1 if we should stop now
+  local need="$1" what="$2"
+  if (( SECONDS > WALL_LIMIT - need )); then
+    echo "$L wall: ${SECONDS}s used, $(wall_left)s left - not starting $what"
+    return 1
+  fi
+  return 0
+}
+
 RESUB=0; done_n(){ ls "$MARK" 2>/dev/null | wc -l; }
 START=$(done_n)
 resub(){ [[ $RESUB -eq 1 ]] && return; RESUB=1; local d; d=$(done_n)
@@ -83,6 +103,7 @@ train(){   # exp  extra-flags...
   local exp="$1"; shift
   local out="outputs/${exp}/${CKPT}.png"
   [[ -f "$out" ]] && { echo "$L reuse $exp"; return 0; }
+  guard $RESERVE_TRAIN "$exp" || { resub; exit 0; }
   echo ""; echo "$L --- train $exp (1300 iters) : $* ---"
   python optimisation/optimise_proj.py --train_config "$CORPUS" --exp_name "$exp" \
     --surrogates qwen --no_projection --seed 0 --num_epochs $EP --lr 0.01 "$@" \
@@ -122,6 +143,7 @@ mkcfg(){   # cfg dataset image [--normalize]
 score(){   # cfg model
   local cfg="$1" m="$2"
   local MK="$MARK/$(echo "${cfg}_${m}" | tr '/' '_')"; [[ -f "$MK" ]] && return 0
+  guard $RESERVE_EVAL "$cfg/$m" || { resub; exit 0; }
   local RES="results/${cfg}/${m}.csv"
   if [[ ! -f "$RES" ]]; then
     local gpy; gpy="$(py_for_gen "$m")"; echo "$L gen $cfg on $m"

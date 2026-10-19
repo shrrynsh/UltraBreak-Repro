@@ -70,6 +70,26 @@ chain_to(){   # script jobname
     || echo "$L chain submit FAILED: $n" >&2
 }
 
+
+# ── wall guard ────────────────────────────────────────────────────────────────
+# A bash trap does NOT interrupt a running foreground command - it is deferred
+# until that command returns. Our inner python runs for hours, so the USR1
+# pre-wall trap never executes and the job is SIGKILLed at the wall with no
+# handoff (exactly what killed job 9138 at 5/6 trainings). So check elapsed time
+# explicitly BETWEEN stages and hand off before starting one we cannot finish.
+WALL_LIMIT=86400          # 24h
+RESERVE_TRAIN=19800       # 5.5h - one 1300-iteration training measured ~4.4h
+RESERVE_EVAL=5400         # 1.5h - a single eval cell
+wall_left(){ echo $(( WALL_LIMIT - SECONDS )); }
+guard(){   # reserve label -> returns 1 if we should stop now
+  local need="$1" what="$2"
+  if (( SECONDS > WALL_LIMIT - need )); then
+    echo "$L wall: ${SECONDS}s used, $(wall_left)s left - not starting $what"
+    return 1
+  fi
+  return 0
+}
+
 done_n(){ ls "$MARK" 2>/dev/null | wc -l; }
 START=$(done_n); RESUB=0
 resub(){ [[ $RESUB -eq 1 ]] && return; RESUB=1; local d; d=$(done_n)
@@ -113,6 +133,7 @@ for m in "${MODELS[@]}"; do
   for cfg in "${ORDER[@]}"; do
     [[ -s "attack_configs/${cfg}.csv" ]] || continue
     MK="$MARK/$(echo "${cfg}_${m}" | tr '/' '_')"; [[ -f "$MK" ]] && { echo "$L skip $cfg/$m"; continue; }
+    guard 16200 "$cfg/$m" || { resub; exit 0; }   # 4.5h: a GLM cell at 1680 rows
     RES="results/${cfg}/${m}.csv"
     if [[ ! -f "$RES" ]]; then
       gpy="$(py_for_gen "$m")"; echo "$L gen $cfg on $m (1680 rows)"
