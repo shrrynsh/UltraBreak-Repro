@@ -129,20 +129,21 @@ train(){   # exp  extra-flags...
   local out="outputs/${exp}/${CKPT}.png"
   [[ -f "$out" ]] && { echo "$L reuse $exp"; return 0; }
   guard $RESERVE_TRAIN "$exp" || { resub; exit 0; }
-  # Resume from the newest every-20-epoch checkpoint rather than restarting at 0.
-  # optimise_proj re-initialises the patch from outputs/<exp>/<base_epoch>.png, so
-  # a run killed at the wall keeps its progress (job 9138 left a_tv1p0_1300 at 220).
-  local base=0 n
-  if [[ -d "outputs/${exp}" ]]; then
-    n=$(ls outputs/${exp}/*.png 2>/dev/null | sed 's|.*/||;s|\.png$||' \
-        | grep -E '^[0-9]+$' | sort -n | tail -1)
-    [[ -n "$n" ]] && (( n > 0 )) && base=$n
+  # DO NOT resume a partial training. --base_epoch restores only the patch pixels;
+  # `optim.Adam([adv_patch], lr=lr)` is rebuilt fresh, so Adam's moment estimates
+  # are lost and the trajectory diverges from an uninterrupted run. The other five
+  # ablations were each trained straight through, so a resumed sixth would not be
+  # comparable to them - and comparability is the entire point of this job. The
+  # wall guard above means a training only starts with 5.5h left against a measured
+  # 4.4h, so interruption should be rare; when it happens, pay the 4.4h again.
+  if [[ -d "outputs/${exp}" ]] && ls outputs/${exp}/*.png >/dev/null 2>&1; then
+    echo "$L $exp has a PARTIAL run and no final checkpoint - discarding it and"
+    echo "$L retraining from scratch, so every ablation is one uninterrupted run"
+    rm -f outputs/${exp}/*.png outputs/${exp}/losses.csv
   fi
-  (( base > 0 )) && echo "$L resuming $exp from epoch $base"
-  echo ""; echo "$L --- train $exp (1300 iters, from $base) : $* ---"
+  echo ""; echo "$L --- train $exp (1300 iters, from scratch) : $* ---"
   python optimisation/optimise_proj.py --train_config "$CORPUS" --exp_name "$exp" \
-    --surrogates qwen --no_projection --seed 0 --num_epochs $EP --lr 0.01 \
-    --base_epoch "$base" "$@" \
+    --surrogates qwen --no_projection --seed 0 --num_epochs $EP --lr 0.01 "$@" \
     || { echo "$L TRAIN FAILED $exp" >&2; return 1; }
   [[ -f "$out" ]] || { echo "$L $exp produced no ${CKPT}.png" >&2; return 1; }
   echo "$L trained $exp"
