@@ -185,6 +185,7 @@ def main():
     ap.add_argument("--gcg_every", type=int, default=1)
     ap.add_argument("--n_cands", type=int, default=64)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--resume", action="store_true", help="continue from the newest checkpoint in --out")
     ap.add_argument("--smoke", action="store_true", help="3 iterations, validates the gradient path")
     a = ap.parse_args()
     if a.smoke:
@@ -207,10 +208,31 @@ def main():
     print(f"[umk-qwen] seeded from VAJM image {a.seed_image}")
 
     suffix = SUFFIX_INIT
+    start_it = 0
+    # Resume: GCG is slow and a 24h wall can land mid-run. Checkpoints are written
+    # every 20 iterations with the suffix appended to adv_suffix.txt, so pick up the
+    # newest pair rather than restarting from the VAJM seed and losing the work.
+    if a.resume:
+        ck = [(int(f[:-4]), f) for f in os.listdir(a.out)
+              if f[:-4].isdigit() and f.endswith(".png")]
+        sf = os.path.join(a.out, "adv_suffix.txt")
+        if ck and os.path.exists(sf):
+            start_it, fn = max(ck)
+            arr = np.asarray(Image.open(os.path.join(a.out, fn)).convert("RGB"),
+                             dtype=np.float32) / 255.0
+            patch = torch.tensor(arr).permute(2, 0, 1).to(atk.device).requires_grad_(True)
+            lines = [l.strip() for l in open(sf) if l.strip()]
+            if lines:
+                suffix = lines[-1]
+            print(f"[umk-qwen] RESUMED at iter {start_it} from {fn}, "
+                  f"suffix {len(suffix)} chars")
+        else:
+            print("[umk-qwen] --resume given but no checkpoint found; starting fresh")
+
     rng = np.random.RandomState(a.seed)
     hist = []
     t0 = time.time()
-    for it in range(a.n_iters + 1):
+    for it in range(start_it, a.n_iters + 1):
         batch = rows.iloc[rng.choice(len(rows), size=min(a.batch, len(rows)), replace=False)]
         # ---- image half: PGD on the patch -----------------------------------
         tot = 0.0

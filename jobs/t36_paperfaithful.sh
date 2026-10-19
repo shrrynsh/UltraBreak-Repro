@@ -80,6 +80,31 @@ WALL_LIMIT=86400          # 24h
 RESERVE_TRAIN=19800       # 5.5h - one 1300-iteration training measured ~4.4h
 RESERVE_EVAL=5400         # 1.5h - a single eval cell
 wall_left(){ echo $(( WALL_LIMIT - SECONDS )); }
+
+# Per-cell runtime estimate. A flat reserve is wrong because GLM at the corrected
+# 4096-token budget runs ~29 s/row while every other model runs 1.4-2.5 s/row: a
+# GLM cell at 520 rows needs 4.2h and at 1680 rows needs 13.5h. attack.py writes
+# its CSV only after the whole config, so a cell killed mid-generation loses ALL
+# its rows and repeats identically on the next resume - it would never finish.
+# So: start a cell only if the WHOLE cell fits in the remaining wall time.
+rate_for(){ case "$1" in
+    *GLM-4.1V*)      echo 29.0 ;;
+    *Kimi-VL*)       echo 2.5 ;;
+    *llava*)         echo 2.2 ;;
+    *Qwen-VL-Chat*)  echo 1.4 ;;
+    *)               echo 1.6 ;;
+  esac; }
+cell_fits(){   # cfg model -> 0 if the whole cell fits in what's left
+  local cfg="$1" m="$2"
+  local rows; rows=$(( $(wc -l < "attack_configs/${cfg}.csv") - 1 ))
+  local est; est=$(python -c "print(int($rows*$(rate_for "$m")+600))")   # +10m model load
+  if (( SECONDS + est > WALL_LIMIT - 600 )); then
+    echo "$L wall: ${cfg}/${m} needs ~$((est/60))m, only $(( (WALL_LIMIT-SECONDS)/60 ))m left - handing off"
+    return 1
+  fi
+  return 0
+}
+
 guard(){   # reserve label -> returns 1 if we should stop now
   local need="$1" what="$2"
   if (( SECONDS > WALL_LIMIT - need )); then
@@ -104,9 +129,20 @@ train(){   # exp  extra-flags...
   local out="outputs/${exp}/${CKPT}.png"
   [[ -f "$out" ]] && { echo "$L reuse $exp"; return 0; }
   guard $RESERVE_TRAIN "$exp" || { resub; exit 0; }
-  echo ""; echo "$L --- train $exp (1300 iters) : $* ---"
+  # Resume from the newest every-20-epoch checkpoint rather than restarting at 0.
+  # optimise_proj re-initialises the patch from outputs/<exp>/<base_epoch>.png, so
+  # a run killed at the wall keeps its progress (job 9138 left a_tv1p0_1300 at 220).
+  local base=0 n
+  if [[ -d "outputs/${exp}" ]]; then
+    n=$(ls outputs/${exp}/*.png 2>/dev/null | sed 's|.*/||;s|\.png$||' \
+        | grep -E '^[0-9]+$' | sort -n | tail -1)
+    [[ -n "$n" ]] && (( n > 0 )) && base=$n
+  fi
+  (( base > 0 )) && echo "$L resuming $exp from epoch $base"
+  echo ""; echo "$L --- train $exp (1300 iters, from $base) : $* ---"
   python optimisation/optimise_proj.py --train_config "$CORPUS" --exp_name "$exp" \
-    --surrogates qwen --no_projection --seed 0 --num_epochs $EP --lr 0.01 "$@" \
+    --surrogates qwen --no_projection --seed 0 --num_epochs $EP --lr 0.01 \
+    --base_epoch "$base" "$@" \
     || { echo "$L TRAIN FAILED $exp" >&2; return 1; }
   [[ -f "$out" ]] || { echo "$L $exp produced no ${CKPT}.png" >&2; return 1; }
   echo "$L trained $exp"
@@ -143,7 +179,7 @@ mkcfg(){   # cfg dataset image [--normalize]
 score(){   # cfg model
   local cfg="$1" m="$2"
   local MK="$MARK/$(echo "${cfg}_${m}" | tr '/' '_')"; [[ -f "$MK" ]] && return 0
-  guard $RESERVE_EVAL "$cfg/$m" || { resub; exit 0; }
+  cell_fits "$cfg" "$m" || { resub; exit 0; }
   local RES="results/${cfg}/${m}.csv"
   if [[ ! -f "$RES" ]]; then
     local gpy; gpy="$(py_for_gen "$m")"; echo "$L gen $cfg on $m"

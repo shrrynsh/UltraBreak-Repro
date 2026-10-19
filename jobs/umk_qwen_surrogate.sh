@@ -68,7 +68,7 @@ fi
 if [[ ! -f "$OUT/bad_vlm_prompt.png" ]]; then
   guard $RESERVE_TRAIN "UMK 2000-iteration training" || { resub; exit 0; }
   echo "$L ===== stage 1: UMK 2000 iters, surrogate = Qwen2-VL ====="
-  python baselines/umk_qwen/umk_qwen2vl.py --n_iters 2000 --out "$OUT" \
+  python baselines/umk_qwen/umk_qwen2vl.py --n_iters 2000 --out "$OUT" --resume \
     || { echo "$L training failed" >&2; resub; exit 1; }
 fi
 [[ -s "$OUT/bad_vlm_prompt.png" ]] || { echo "$L no artifact" >&2; resub; exit 1; }
