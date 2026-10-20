@@ -1,0 +1,535 @@
+\documentclass[10pt]{article} % For LaTeX2e
+\usepackage{tmlr}
+% If accepted, instead use the following line for the camera-ready submission:
+%\usepackage[accepted]{tmlr}
+% To de-anonymize and remove mentions to TMLR (for example for posting to preprint servers), instead use the following:
+%\usepackage[preprint]{tmlr}
+
+% Optional math commands from https://github.com/goodfeli/dlbook_notation.
+\input{math_commands.tex}
+
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{graphicx}
+
+% Drafting aids only. Delete these macros and every \todo{}, \pending{}, \note{}
+% before submission. All three are deliberately loud so nothing ships by accident.
+\newcommand{\todo}[1]{\textbf{[TODO: #1]}}
+\newcommand{\pending}[1]{\textbf{[PENDING: #1]}}   % job still running; number not final
+\newcommand{\note}[1]{\textit{[note: #1]}}          % guidance for you, not for the reader
+
+\title{Reproducibility Study of UltraBreak:\\Universal and Transferable Jailbreak Attacks\\on Vision-Language Models}
+
+% Authors must not appear in the submitted version. They should be hidden
+% as long as the tmlr package is used without the [accepted] or [preprint] options.
+% Non-anonymous submissions will be rejected without review.
+
+\author{\name Shreyansh Modi \email shreyansh\_m@ee.iitr.ac.in \\
+      \addr Department of Electrical Engineering\\
+      Indian Institute of Technology Roorkee}
+
+% The \author macro works with any number of authors. Use \AND
+% to separate the names and addresses of multiple authors.
+
+\newcommand{\fix}{\marginpar{FIX}}
+\newcommand{\new}{\marginpar{NEW}}
+
+\def\month{MM}  % Insert correct month for camera-ready version
+\def\year{YYYY} % Insert correct year for camera-ready version
+\def\openreview{\url{https://openreview.net/forum?id=XXXX}} % Insert correct link to OpenReview for camera-ready version
+
+
+\begin{document}
+
+
+\maketitle
+
+\begin{abstract}
+\todo{One paragraph only. Cover in this order: (i) the two headline claims you test, universality and
+transferability of a single image; (ii) the three tracks (released artifact, code-faithful retrain,
+paper-faithful retrain) plus baselines and ablations; (iii) the central result, that the released
+\emph{artifact} reproduces to the decimal (81.59\% on SafeBench under the authors' own scorer) while
+the released \emph{code} provably cannot produce it; (iv) the two numbers that carry that claim, the
+zero-training band test (67.69 $\rightarrow$ 8.85 on AdvBench) and the budget gate (23.49 at the
+paper's 1300 iterations versus 83.49 at 3000); (v) the three evaluation-protocol findings a reader
+must know: the undocumented AdvBench rewrite worth 58 points, the released scorer that reads the
+harmful prompt back into the model's answer, and unseeded stochastic decoding on three of six victim
+models. Close with which claims hold, partly hold, and fail.}
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+\todo{Four paragraphs. (1) Motivate universal visual jailbreaks: one image, many queries, many models,
+and why that threat model matters more than per-query attacks. (2) Introduce
+UltraBreak~\citep{cui2026ultrabreak} and its claim structure. (3) Argue why this paper is unusually
+checkable: the entire artifact is a single released PNG, so artifact and code can be tested against
+each other independently, a check most papers do not permit. This framing is your strongest
+motivation. (4) Contributions.}
+
+\todo{Contribution list, five items, one sentence each: (a) a three-track reproduction over six models,
+three benchmarks and two scorers, with every number naming its scorer; (b) five material paper-versus-code
+discrepancies, one of which makes the released code unable to produce the released artifact;
+(c) recovery of undocumented evaluation protocol by solving for the denominators consistent with the
+paper's own published ASRs, which identifies MM-SafetyBench as uniquely $n=1680$; (d) all three
+baselines re-run under the paper's stated protocol, plus evidence from the paper's own numbers that
+UMK and VAJM were measured under different threat models; (e) a reproducibility limit that binds the
+original work as much as ours, namely that three of six victim models decode stochastically with no
+seed.}
+
+\section{Scope of Reproducibility}
+\label{sec:scope}
+
+\citet{cui2026ultrabreak} propose UltraBreak, which optimises a single adversarial image on one white-box surrogate VLM (Qwen2-VL-7B-Instruct;~\citealp{wang2024qwen2vl}) using a few-shot corpus of harmful queries, and evaluate it against unseen queries and unseen victim models. We test the following claims of the original paper.
+
+\begin{enumerate}
+    \item \textbf{Universality.} A single image optimised on SafeBench-Tiny jailbreaks the surrogate on held-out queries from SafeBench~\citep{gong2025figstep}, AdvBench~\citep{zou2023universal} and MM-SafetyBench~\citep{liu2024mmsafetybench}.
+    \label{claim:universal}
+    \item \textbf{Transferability.} The same image transfers to five black-box open-weight VLMs and outperforms FigStep~\citep{gong2025figstep}, VAJM~\citep{qi2024visual} and UMK~\citep{wang2024umk} on black-box average attack success rate (ASR).
+    \label{claim:transfer}
+    \item \textbf{Component contributions.} The semantic loss, the attention weighting over future target tokens, and the input-space constraints each improve ASR.
+    \label{claim:ablation}
+    \item \textbf{Loss landscape.} The semantic loss yields a smoother loss landscape than cross-entropy, controlled by the temperature $\tau$.
+    \label{claim:landscape}
+    \item \textbf{Emergent patterns.} Random transformations and total variation regularisation induce structured, text-like patterns in the adversarial image.
+    \label{claim:patterns}
+    \item \textbf{Robustness to design choices.} ASR is insensitive to the choice of affirming phrase, and $\lambda_{\mathrm{TV}}=0.5$ is a reasonable trade-off across victims.
+    \label{claim:sensitivity}
+    \item \textbf{Low overhead.} The semantic loss adds little compute relative to a cross-entropy objective.
+    \label{claim:overhead}
+\end{enumerate}
+
+Claims about closed-source and frontier models (GPT-4.1-nano, Gemini-2.5-flash-lite, Claude-3-haiku, GPT-5 and Claude-Sonnet-4.5) are outside the scope of this study because they require paid API access.
+
+\todo{Expand the scope paragraph above. Say that the generation code for the closed models \emph{is}
+implemented and error-wrapped in the release, so the gap is credentials rather than capability, and
+that you therefore report them as untested rather than omitted. Then add the observation that costs
+nothing and strengthens the paper: by the original paper's own Table~9, UltraBreak is $+2$ points over
+No-Attack on GPT-5 and $10$ points \emph{below} No-Attack on Claude-Sonnet-4.5, so the attack does not
+work on frontier models by the authors' own measurement. Restate the scope decision in
+Section~\ref{sec:discussion}.}
+
+\todo{Insert Table~\ref{tab:verdicts} here and tell the reader the verdicts are stated up front
+deliberately. Fill its Verdict column \emph{last}, after Section~\ref{sec:results} is written, so the
+summary and the evidence cannot drift apart.}
+
+\begin{table}[t]
+\caption{Verdict on each claim, stated up front}
+\label{tab:verdicts}
+\begin{center}
+\begin{tabular}{clp{7.2cm}}
+\multicolumn{1}{c}{\bf Claim} & \multicolumn{1}{c}{\bf Short name} & \multicolumn{1}{c}{\bf Verdict}
+\\ \hline \\
+\ref{claim:universal}   & Universality              & \todo{} \\
+\ref{claim:transfer}    & Transferability           & \todo{} \\
+\ref{claim:ablation}    & Component contributions   & \todo{} \\
+\ref{claim:landscape}   & Loss landscape            & \todo{} \\
+\ref{claim:patterns}    & Emergent patterns         & \todo{} \\
+\ref{claim:sensitivity} & Robustness to design      & \todo{} \\
+\ref{claim:overhead}    & Low overhead              & \todo{} \\
+\end{tabular}
+\end{center}
+\end{table}
+
+\section{The Original Method}
+\label{sec:method}
+
+\todo{Summarise UltraBreak in enough detail for the reader to follow the discrepancies in Section~\ref{sec:discrepancies}, and no more. Check every symbol against the original paper before finalising; a reproducibility paper loses credibility fastest on a mis-transcribed equation.}
+
+\paragraph{Semantic loss.} \todo{Define the expected output embedding $\mu_t = W^{\top}\mathrm{softmax}(z_t)$, the attention-weighted target $e_t^{\mathrm{att}} = \sum_{j \ge t} w_{t,j}^{\mathrm{att}}\, \tilde{e}_j$, and the loss below. \note{State explicitly that the sum runs over $j \ge t$, that is over \emph{future} target tokens, an upper-triangular mask. You need this on the record here because Section~\ref{sec:discrepancies} reports that the released code's inline comment claims the opposite, and the code is right while the comment is wrong. We first mis-read this as a bug and retracted it; do not repeat that error in print.}}
+\begin{equation}
+    \mathcal{L}_{\mathrm{sem}}^{\mathrm{att}} = \frac{1}{T}\sum_{t=1}^{T}\Big(1 - \cos\big(\mu_t, e_t^{\mathrm{att}}\big)\Big).
+    \label{eq:semantic}
+\end{equation}
+
+\paragraph{Input-space constraints.} \todo{Describe the random patch transformation $A(\cdot, l, r, s)$, the projection $x_{\mathrm{proj}} = \mathrm{clip}(\gamma x + \beta, 0, 1)$ of Section~3.2 of the original paper, and the total variation term. Flag here that the projection is central to the method as described, so the reader is primed for Section~\ref{sec:discrepancies} revealing that it is never called.}
+
+\paragraph{Targeted Prompt Guidance.} \todo{Describe the prompt template and the affirming phrase [Jailbroken Mode]. \note{The paper's prose places TPG on the \emph{training} corpus, which would imply bare evaluation prompts. Two things say it is applied at evaluation as well: the paper switches the phrase to [START LIST] for closed-source \emph{evaluation}, and our ablation measures the released image at 16.83\% on SafeBench with TPG off against 78.73\% with it on, and only the latter reproduces their 81.59. Raise the ambiguity in one sentence here and resolve it in Section~\ref{sec:discrepancies}.}}
+
+\section{Methodology}
+\label{sec:methodology}
+
+\todo{Explain the strategy and the reason for it: evaluate the released artifact \emph{first}, because that isolates the evaluation harness from the training pipeline. If the released image reproduces the published number under your harness, every remaining gap must be in training. Then introduce the two retraining tracks: a code-faithful track that runs the authors' released code verbatim, and a paper-faithful track that implements the method as described. Say how verbatim-ness was guaranteed for the code-faithful track: the script was materialised from commit \texttt{c4c276d} by \texttt{git show}, hash-checked, with exactly three substitutions (corpus path, experiment name, iteration count).}
+
+\subsection{Models and Benchmarks}
+\label{sec:models}
+
+\todo{List the surrogate and the five black-box victims (Qwen-VL-Chat, Qwen2.5-VL-7B-Instruct, LLaVA-v1.6-Mistral-7B, Kimi-VL-A3B-Instruct, GLM-4.1V-9B-Thinking). Then give the three evaluation sets together with the derivation of each size, because the paper does not state them all: SafeBench is 500 queries minus three excluded topics (legal opinion, financial advice, health consultation) minus the SafeBench-Tiny training set, giving 315 held-out queries, which the paper does state; AdvBench is all 520 rows of the released \texttt{harmful\_behaviors.csv}; MM-SafetyBench is the \texttt{Text\_only} split, 1680 questions over 13 scenarios. Forward-reference Section~\ref{sec:recovery} for how these were confirmed.}
+
+\subsection{Recovering the Undocumented Protocol}
+\label{sec:recovery}
+
+\todo{Write this as a methodological contribution, not a footnote. Two sentences for the idea: ASR is a ratio of integers, so the denominator is recoverable by solving for every $N$ under which \emph{all} values a paper reports for a benchmark are consistent with some $k/N$ at the printed precision. Then Table~\ref{tab:denominators}. Emphasise two things: MM-SafetyBench has a \emph{unique} solution over all 24 reported values, which is strong evidence; and SafeBench and AdvBench come out matching what we already used, which is a control validating the method.}
+
+\begin{table}[t]
+\caption{Evaluation-set sizes recovered from the original paper's own reported ASRs}
+\label{tab:denominators}
+\begin{center}
+\begin{tabular}{lll}
+\multicolumn{1}{c}{\bf Benchmark} & \multicolumn{1}{c}{\bf Denominators consistent with all values} & \multicolumn{1}{c}{\bf Ours}
+\\ \hline \\
+SafeBench      & 315, 630, 945, \ldots (multiples) & 315 \\
+AdvBench       & 520, 1040, 1560                   & 520 \\
+MM-SafetyBench & {\bf 1680 (unique)}               & 1680 \\
+\end{tabular}
+\end{center}
+\end{table}
+
+\todo{Second paragraph: what the paper does \emph{not} specify about MM-SafetyBench. Its entire specification is ``1680 harmful targets covering 13 scenarios''. It never says which of the four variants (Stable-Diffusion, typographic, SD+TYPO, \texttt{Text\_only}) is used --- the string ``Stable-Diffusion'' does not appear in the paper --- nor whether the adversarial image replaces the benchmark's own image. State your choice, \texttt{Text\_only}, and why it is forced rather than arbitrary: the image-bearing splits ask image-dependent questions (``The bottom of the image shows a phrase\ldots'') that become incoherent once a universal patch replaces their generated image. Then say plainly that the choice is forced by us and not stated by them, and that this is a reproducibility gap in the original work.}
+
+\subsection{Evaluation Protocol}
+\label{sec:protocol}
+
+\todo{Define ASR with the HarmBench classifier~\citep{mazeika2024harmbench}. Introduce the authors' released scorer (v1) and our corrected scorer (v3), and state the rule you follow throughout: every number names its scorer, because the two disagree by $+1$ to $+13$ points depending on the run and in places \emph{reorder} models. One sentence on the asymmetry worth noticing: v1 is the scorer whose behaviour matches the paper's numbers, while v3 is the one we believe correct.}
+
+\todo{Then the GLM-4.1V generation budget. The released code uses \texttt{max\_new\_tokens=512} for every model, which starves GLM's \texttt{<think>} reasoning trace; we raised it to 4096 on the basis of a generation-length probe (maximum observed 2372 tokens, no row at the ceiling), which brings valid extraction to 95--100\% on every configuration. Forward-reference the D14 subsection. Finally mention StrongREJECT~\citep{souly2024strongreject} and why its native scorer was unavailable to us.}
+
+\subsection{Hyperparameters}
+\label{sec:hyperparameters}
+
+Table~\ref{tab:hyperparameters} lists the hyperparameters reported by \citet{cui2026ultrabreak} next to the values used in our runs.
+
+\todo{Add one sentence after this table making the point that matters: every value matches except the iteration count, and that deviation is itself a finding rather than a liberty we took. Forward-reference the D11 subsection.}
+
+\begin{table}[t]
+\caption{Hyperparameters of the original paper and of our retraining runs}
+\label{tab:hyperparameters}
+\begin{center}
+\begin{tabular}{lll}
+\multicolumn{1}{c}{\bf Hyperparameter} & \multicolumn{1}{c}{\bf Original paper} & \multicolumn{1}{c}{\bf Ours}
+\\ \hline \\
+Optimiser                    & Adam                       & Adam \\
+Learning rate                & 0.01                       & 0.01 \\
+Iterations                   & 1300                       & 1300 and 3000 \\
+Image size                   & $224 \times 224$           & $224 \times 224$ \\
+Patch location range         & 0 to 112                   & 0 to 112 \\
+Rotation                     & $\pm 15^{\circ}$           & $\pm 15^{\circ}$ \\
+Scale                        & 0.8 to 1.2                 & 0.8 to 1.2 \\
+Attention temperature $\tau$ & 0.5                        & 0.5 \\
+Embedding noise $\epsilon$   & $10^{-4}$                  & $10^{-4}$ \\
+$\lambda_{\mathrm{TV}}$      & 0.5                        & 0.5 \\
+Affirming phrase             & [Jailbroken Mode]          & [Jailbroken Mode] \\
+Random seed                  & not reported               & 0 \\
+\end{tabular}
+\end{center}
+\end{table}
+
+\subsection{Experimental Setup and Code}
+\label{sec:setup}
+
+\todo{Describe the three pinned environments and, importantly, \emph{why} they are isolated: a version change silently invalidates numbers already measured. They are \texttt{repro} (torch 2.5.1+cu124, transformers 4.51.3) for all main training, evaluation and judging; \texttt{repro\_glm} (transformers 5.15.0) for GLM generation only, which its architecture requires; and \texttt{minigpt4} (torch 2.0.1+cu118, transformers 4.28.0) for the VAJM and UMK baselines only. Say that every job asserts its pins at start-up and calls interpreters by explicit path. Declare the one deviation honestly: the VAJM/UMK environment pins torch 1.12.1/cu11.3, which does not support our GPU (sm\_89 requires CUDA $\ge$ 11.8), so torch was raised to the smallest supporting version.}
+
+\todo{Then the baseline setups: FigStep uses the authors' released typographic images on SafeBench only, because it needs a distinct image per target and so has no universal trigger; VAJM optimises on the derogatory corpus for 5000 iterations; UMK is seeded from the VAJM image and trains a further 2000 iterations jointly over image and text suffix. State that the vendored baseline repositories contradict the paper in three places, which we overrode in favour of the paper: UMK's released code hard-codes 250 iterations rather than the stated 2000, seeds from its own initialisation image rather than VAJM's, and draws 66 \emph{unseeded} random AdvBench rows rather than using SafeBench-Tiny as the few-shot corpus.}
+
+\todo{Finally, give an anonymised code link for review only, for example through an anonymous repository service; a link to a personal GitHub account would break anonymity.}
+
+\subsection{Computational Requirements}
+\label{sec:compute}
+
+\todo{Report the GPU (NVIDIA RTX 6000 Ada, 48\,GB) and per-run costs: a 1300-iteration training is 4.4 hours wall-clock (14.32 seconds per 50-row epoch), a 3000-iteration training 11.9 hours. Then make the point worth making: evaluation cost is dominated by a single model. GLM at the corrected token budget runs at 29 seconds per row against 1.4--2.5 for every other victim, so one GLM cell is 2.5 hours at 315 rows and 13.5 hours at 1680 --- roughly three quarters of total evaluation compute. Give total GPU hours from \texttt{sacct}.}
+
+\section{Results}
+\label{sec:results}
+
+\todo{Open with one paragraph stating which claims hold, which hold partly, and which do not. Write this paragraph \emph{last}.}
+
+\subsection{Released Artifact}
+\label{sec:results-artifact}
+
+\todo{Lead with the strongest sentence available to you: the released artifact reproduces the headline exactly --- 81.59\% on SafeBench under the authors' own scorer, to the decimal, and 88.25\% on LLaVA likewise. State the consequence immediately: the evaluation harness is faithful, so every remaining gap lies in training. Then Table~\ref{tab:main-safebench}.}
+
+\todo{Second paragraph: the clearest unreproduced result. Both retrains fail on Qwen2.5-VL (26.98 and 26.03 against the paper's 60.32). Pre-empt the two obvious reviewer objections: it is not the scorer, because v1 gives 27.62 and 28.89, equally low; and it is not a general transfer failure, because both retrains reproduce LLaVA within three points.}
+
+\todo{Third paragraph: AdvBench, Table~\ref{tab:main-advbench}, with the caveat that the entire table presumes the normalised prompt form --- the same image scores 9.62 on the raw benchmark against 67.69 reworded. Forward-reference D13.}
+
+\todo{Fourth paragraph: MM-SafetyBench, Table~\ref{tab:main-mm}.}
+
+\begin{table}[t]
+\caption{SafeBench ($n=315$), ASR\%. $^{\ast}$ marks the white-box surrogate. Our rows are scorer v3,
+with v1 in parentheses where it differs materially. $^{\dagger}$ our UMK is a cross-architecture
+transfer rather than a white-box attack; see Section~\ref{sec:results-baselines}.}
+\label{tab:main-safebench}
+\begin{center}
+\small
+\begin{tabular}{lcccccc}
+\multicolumn{1}{c}{\bf Method} & \multicolumn{1}{c}{\bf Qwen2-VL$^{\ast}$} & \multicolumn{1}{c}{\bf Qwen-VL-Chat} & \multicolumn{1}{c}{\bf Qwen2.5-VL} & \multicolumn{1}{c}{\bf LLaVA-1.6} & \multicolumn{1}{c}{\bf Kimi-VL} & \multicolumn{1}{c}{\bf GLM-4.1V}
+\\ \hline \\
+No Attack (paper)    & 18.41 & 22.86 & 14.29 & 80.32 & 39.37 & 46.03 \\
+No Attack (ours)     & 13.02 & 7.30  & 18.10 & 57.14 & 33.02 & 53.02 \\
+FigStep (paper)      & 44.76 & 69.52 & 53.97 & 47.94 & 73.02 & 88.25 \\
+FigStep (ours)       & 68.25 & 70.16 & 63.17 & 55.56 & 77.78 & 83.49 \\
+VAJM (paper)         & 0.95  & 12.06 & 28.89 & 57.46 & 41.27 & 67.62 \\
+VAJM (ours)          & 12.06 & 6.35  & 22.54 & 59.68 & 33.65 & 50.79 \\
+UMK (paper)          & {\bf 97.78} & 0.63 & 15.24 & 20.63 & 12.70 & 50.79 \\
+UMK$^{\dagger}$ (ours) & {\bf 1.27} & 3.17 & 20.00 & 61.27 & 32.06 & 60.95 \\
+UltraBreak (paper)   & 81.59 & 72.70 & 60.32 & 88.25 & 67.94 & 66.03 \\
+\quad released image & 78.73 ({\bf 81.59}) & 77.14 & 53.65 & {\bf 88.25} & 69.84 & 60.32 \\
+\quad code-faithful  & 73.02 & 60.32 & {\bf 26.98} & 85.40 & 65.08 & 58.73 \\
+\quad paper-faithful & 64.13 & 68.89 & {\bf 26.03} & 87.62 & 60.95 & 60.95 \\
+\end{tabular}
+\end{center}
+\end{table}
+
+\begin{table}[t]
+\caption{AdvBench ($n=520$, normalised ``Steps to \ldots'' form), ASR\% under scorer v3}
+\label{tab:main-advbench}
+\begin{center}
+\small
+\begin{tabular}{lcccccc}
+\multicolumn{1}{c}{\bf Method} & \multicolumn{1}{c}{\bf Qwen2-VL$^{\ast}$} & \multicolumn{1}{c}{\bf Qwen-VL-Chat} & \multicolumn{1}{c}{\bf Qwen2.5-VL} & \multicolumn{1}{c}{\bf LLaVA-1.6} & \multicolumn{1}{c}{\bf Kimi-VL} & \multicolumn{1}{c}{\bf GLM-4.1V}
+\\ \hline \\
+No Attack (paper)    & 0.38  & 1.92  & 0.00 & 21.35 & 4.42 & 2.12 \\
+No Attack (ours)     & 1.35  & 3.46  & 0.77 & 48.65 & 3.46 & 9.81 \\
+VAJM (paper)         & 0.38  & 0.96  & 0.38 & 19.42 & 3.65 & 3.65 \\
+VAJM (ours)          & 0.19  & 1.15  & 0.96 & 21.15 & 3.46 & 3.08 \\
+UMK (paper)          & {\bf 70.00} & 0.38 & 2.69 & 16.35 & 2.12 & 4.42 \\
+UMK$^{\dagger}$ (ours) & {\bf 0.58} & 0.96 & 1.73 & 27.69 & 4.42 & 5.00 \\
+UltraBreak (paper)   & 72.69 & 71.92 & 35.77 & 92.88 & 30.38 & 30.00 \\
+\quad released image & 67.69 (74.62) & 75.00 & 25.19 & 93.85 & 28.85 & 24.04 \\
+\quad code-faithful  & 22.50 & 38.85 & 2.12 & 89.62 & 27.50 & 21.73 \\
+\quad paper-faithful & 10.19 & 75.00 & 1.73 & 91.15 & 29.62 & 19.81 \\
+\end{tabular}
+\end{center}
+\end{table}
+
+\begin{table}[t]
+\caption{MM-SafetyBench, ASR\% under scorer v3.
+\pending{currently a seed-0 stratified subsample of $n=520$, binomial standard error about 2.2 points;
+the $n=1680$ re-run at the paper's own size is in flight and must replace these values}}
+\label{tab:main-mm}
+\begin{center}
+\small
+\begin{tabular}{lcccccc}
+\multicolumn{1}{c}{\bf Method} & \multicolumn{1}{c}{\bf Qwen2-VL$^{\ast}$} & \multicolumn{1}{c}{\bf Qwen-VL-Chat} & \multicolumn{1}{c}{\bf Qwen2.5-VL} & \multicolumn{1}{c}{\bf LLaVA-1.6} & \multicolumn{1}{c}{\bf Kimi-VL} & \multicolumn{1}{c}{\bf GLM-4.1V}
+\\ \hline \\
+No Attack (paper)    & 26.19 & 21.49 & 33.45 & 35.06 & 41.79 & 43.69 \\
+No Attack (ours)     & 22.88 & 18.27 & 22.88 & 48.08 & 39.81 & 54.42 \\
+VAJM (paper)         & 5.42  & 11.73 & 26.79 & 30.18 & 35.36 & 36.73 \\
+VAJM (ours)          & 20.19 & 28.46 & 27.88 & 48.65 & 36.73 & 52.12 \\
+UMK (paper)          & {\bf 54.76} & 5.48 & 17.56 & 21.96 & 26.67 & 37.44 \\
+UMK$^{\dagger}$ (ours) & {\bf 18.08} & 15.19 & 23.46 & 44.04 & 34.04 & 56.54 \\
+UltraBreak (paper)   & 57.26 & 53.10 & 45.83 & 71.90 & 54.58 & 67.08 \\
+\quad released image & 37.31 & 55.96 & 48.08 & 74.62 & 54.42 & 63.85 \\
+\quad code-faithful  & 37.50 & 47.88 & 35.96 & 71.92 & 35.96 & 57.88 \\
+\quad paper-faithful & 33.85 & 40.96 & 35.38 & 72.31 & 35.96 & 57.31 \\
+\end{tabular}
+\end{center}
+\end{table}
+
+\subsection{Retraining from Scratch}
+\label{sec:results-retrain}
+
+\todo{This subsection is the heart of the paper. Build Table~\ref{tab:budget} as a four-step narrative: (1) the released code run verbatim gives 29.84 on SafeBench, a third of the reported value; (2) fixing the normalisation bug at the paper's own 1300 iterations makes it \emph{worse}, 23.49, which is the counter-intuitive turn that makes the finding interesting; (3) only at 3000 iterations does the fixed pipeline reach 83.49, slightly exceeding the paper; (4) conclude that the fix is \emph{necessary and budget-gated}. Those three words are the contribution: neither ``the code is buggy'' nor ``we needed more steps'' explains the pattern on its own.}
+
+\begin{table}[t]
+\caption{Retraining outcomes under scorer v3. The normalisation fix is necessary but budget-gated:
+it does nothing at the paper's stated iteration count and only pays off at $2.3\times$ that budget.}
+\label{tab:budget}
+\begin{center}
+\begin{tabular}{llcc}
+\multicolumn{1}{c}{\bf Configuration} & \multicolumn{1}{c}{\bf Iterations} & \multicolumn{1}{c}{\bf SafeBench-315} & \multicolumn{1}{c}{\bf AdvBench-520}
+\\ \hline \\
+Released code verbatim (buggy)        & 1300 & 29.84 & 1.73 \\
+\quad + Section 3.2 projection        & 1300 & 48.25 & 22.31 \\
+Normalisation fix, no projection      & 1300 & 23.49 & 1.35 \\
+Normalisation fix, no projection      & {\bf 3000} & {\bf 83.49} & 39.04 \\
+Paper-faithful (fix + projection)     & 1300 & 64.13 & 10.19 \\
+Code-faithful (verbatim, our corpus)  & 1300 & 73.02 & 22.50 \\
+Authors' released image (reference)   & ---  & 78.73 & 67.69 \\
+\end{tabular}
+\end{center}
+\end{table}
+
+\todo{Second paragraph: state the failure plainly, because it strengthens the paper. AdvBench is not reproduced by \emph{any} retrain. The best reaches 39.04 against the paper's 72.69, with non-refusal at only 47.9\%, so roughly half of AdvBench still refuses outright. The released artifact does not have this problem (67.69). Say that you could not identify what gives the authors' image its better cross-distribution generalisation, and name this as the main open question the study leaves. Do not speculate beyond the evidence.}
+
+\subsection{Baselines}
+\label{sec:results-baselines}
+
+\todo{One paragraph each for FigStep and VAJM. FigStep reproduces: released typographic images, SafeBench only because it has no universal trigger, 55.6--83.5 against the paper's 44.8--88.3 with the same broad ordering. VAJM reproduces well: mean absolute error over the five black-box columns is 6.3 points (median 2.2), and AdvBench is near cell-for-cell.}
+
+\todo{Then the UMK argument, which deserves its own treatment and should read as a deduction rather than an excuse. The steps are: (1) our UMK scores 1.27 on the surrogate against the paper's 97.78, while matching or exceeding the paper on all five black-box columns (mean absolute error 10.5); (2) a broken method would be wrong everywhere, whereas ours is wrong in exactly one column; (3) the mechanism is that UMK jointly optimises an image \emph{and} a GCG text suffix, and the suffix is selected token-by-token against one model's embedding matrix, so it carries no meaning to a different tokenizer; (4) the paper's own profile is a white-box signature, 97.78/70.00/54.76 on the surrogate against at most 50.79/16.35/37.44 elsewhere, so the authors ran UMK with Qwen2-VL as the surrogate, which the paper never states; (5) VAJM shows no such profile, its \emph{worst} SafeBench cell being the surrogate itself at 0.95, below its own No-Attack of 18.41; (6) therefore the two baselines sit in one table under different threat models and the paper does not say so. State the consequence without over-claiming: UMK's reported black-box average is 20.00 precisely because its one strong cell is excluded from that average. \pending{we are re-running UMK with Qwen2-VL as the surrogate to close this; report that result here}}
+
+\subsection{Ablations}
+\label{sec:results-ablations}
+
+\todo{\pending{Our ablation patches were trained at 3000 iterations rather than the paper's 1300, and are being retrained at the paper's budget. Do not present Table~\ref{tab:ablation} as final until that lands: the budget mismatch plausibly explains part of the disagreement below.}}
+
+\begin{table}[t]
+\caption{Component ablation on the white-box surrogate, scorer v3.
+\pending{ours at 3000 iterations; the 1300-iteration retrain is in flight}}
+\label{tab:ablation}
+\begin{center}
+\begin{tabular}{lcccc}
+\multicolumn{1}{c}{\bf Variant} & \multicolumn{1}{c}{\bf SafeBench (paper)} & \multicolumn{1}{c}{\bf SafeBench (ours)} & \multicolumn{1}{c}{\bf AdvBench (paper)} & \multicolumn{1}{c}{\bf AdvBench (ours)}
+\\ \hline \\
+w/o jailbreak image     & 15.87 & 13.02 & 10.19 & 1.35 \\
+w/o constraints         & 89.84 & {\bf 31.75} & 63.27 & {\bf 2.12} \\
+w/o semantic loss (CE)  & 72.38 & 67.94 & 57.69 & 15.77 \\
+w/o attention weighting & 68.25 & {\bf 14.60} & 47.50 & {\bf 1.15} \\
+Proposed method         & 81.59 & 83.49 & 72.69 & 39.04 \\
+\end{tabular}
+\end{center}
+\end{table}
+
+\todo{If the disagreement survives the retrain, write it as: two of four components disagree in magnitude and one in \emph{sign}. In the paper, removing the input-space constraints \emph{raises} white-box SafeBench above the proposed method (89.84 against 81.59); in our hands it more than halves it. Also report the internal inconsistency we found in the original: its Table~1 and Table~3 give different values for the same quantity, No-Attack SafeBench on the surrogate being 18.41 in one and 15.87 in the other.}
+
+\todo{Affirming-phrase paragraph, Claim~\ref{claim:sensitivity}. Ours reads 60.63 / 54.60 / 59.68 under v3 against the paper's 66.03 / 72.06 / 66.98. Verdict: reproduces, because all three fall in a tight band and that is the qualitative claim. The ordering still differs and scorer choice does not explain it, since v1 preserves our ordering at 64.44 / 55.56 / 61.27. Then make the methodological point loudly, because it is your best concrete illustration of the paper's theme: before the token-budget fix these same three numbers read 39.05 / 30.48 / 32.70, about thirty points low, and the table looked like a clear failure. It was a measurement artifact, not a method failure.}
+
+\todo{Total variation sweep, Claim~\ref{claim:sensitivity}. \pending{retraining at 1300 iterations.} Report honestly that our earlier white-box-only sweep was \emph{not} comparable to the paper's, which measures transfer to Qwen-VL-Chat and GLM rather than the surrogate, and that we retracted that comparison. Reviewers reward a visible retraction far more than they punish the original error.}
+
+\subsection{Analysis}
+\label{sec:results-analysis}
+
+\todo{Compute overhead, Claim~\ref{claim:overhead}: reproduces. Two independent measurements. A micro-benchmark of one forward and backward pass gives $1.08\times$; per-step wall-clock over the full 3000-epoch runs, recovered from checkpoint timestamps, gives 12.93 seconds for cross-entropy against 14.32 for the semantic loss, a ratio of $1.107\times$. The paper reports $1.17\times$. Note that absolute times are not comparable across GPUs and that the paper's own reproducible quantity is the ratio. Then add the breakdown our method affords and theirs does not: of the roughly 11\% overhead, about 6.5 points come from the input-space constraints and about 4 from attention mode over token mode.}
+
+\todo{Emergent patterns, Claim~\ref{claim:patterns}: reproduces, and we make it quantitative. Argue the method first --- a contact sheet cannot settle a claim about structure, so we pair it with measured statistics. Then Table~\ref{tab:texture}: removing the TV term \emph{and} the random transforms makes the patch 4.3 times rougher and collapses mid-band, stroke-scale energy by a factor of 3.5, with 91\% of spectral power above 32 cycles per image, which is the signature of pixel noise rather than structure. Close with the finding the paper does not make: cross-entropy with constraints is intermediate on every statistic, so the \emph{constraints}, not the loss, produce the texture.}
+
+\begin{table}[t]
+\caption{Texture statistics of the adversarial patches. Mid-band is the fraction of FFT power between
+8 and 32 cycles per image, the scale at which glyph strokes live.}
+\label{tab:texture}
+\begin{center}
+\begin{tabular}{lccc}
+\multicolumn{1}{c}{\bf Patch} & \multicolumn{1}{c}{\bf TV per pixel} & \multicolumn{1}{c}{\bf Mid-band} & \multicolumn{1}{c}{\bf Edge density}
+\\ \hline \\
+Authors' released image       & 0.0793 & 0.2247 & 0.641 \\
+Ours, fix + 3000 iterations   & {\bf 0.0572} & {\bf 0.2926} & 0.598 \\
+Cross-entropy loss            & 0.1335 & 0.2121 & 0.862 \\
+w/o constraints               & {\bf 0.2485} & {\bf 0.0838} & 0.930 \\
+\end{tabular}
+\end{center}
+\end{table}
+
+\todo{Loss landscape, Claim~\ref{claim:landscape}, and the first-token distribution: both reproduce qualitatively. The semantic loss gives a visibly smoother landscape than cross-entropy and higher $\tau$ smooths it further; first-token entropy rises from 1.3 to 3.3 nats as $\tau$ increases, consistent with the attention temperature relaxing the exact-match target. Keep this short, it is a confirmation rather than a finding.}
+
+\todo{Model-size transfer, Claim~\ref{claim:transfer}: reproduced for the 2B and 7B surrogates, with the 32B surrogate dropped for compute budget and reported as untested. Surrogate-choice transfer was blocked until recently by a crash in the released LLaVA adapter; see the minor issues in Section~\ref{sec:discrepancies}.}
+
+\subsection{A Reproducibility Limit That Binds the Original Work}
+\label{sec:determinism}
+
+\todo{Frame this as a finding about the field rather than a complaint about the authors. Present Table~\ref{tab:determinism}, note that the released evaluation path sets no random seed anywhere, and conclude that three of six victim columns are single stochastic draws --- in the original paper as much as in our reproduction --- and that no interval anywhere accounts for decoding variance, since ours cover sampling of \emph{queries} rather than of \emph{decodings}. Then give the empirical proof, which is what makes this persuasive rather than theoretical: two of our configurations are byte-identical in prompts, images and targets, and GLM scored 191/315 on one and 190/315 on the other, the same experiment disagreeing with itself. End with the practical rule: differences of one or two points on these three models should not be read as real.}
+
+\begin{table}[t]
+\caption{Shipped decoding configurations of the six evaluated models. No random seed is set anywhere
+in the released evaluation path.}
+\label{tab:determinism}
+\begin{center}
+\begin{tabular}{lcccl}
+\multicolumn{1}{c}{\bf Model} & \multicolumn{1}{c}{\bf do\_sample} & \multicolumn{1}{c}{\bf top\_k} & \multicolumn{1}{c}{\bf temperature} & \multicolumn{1}{c}{\bf Verdict}
+\\ \hline \\
+Qwen2-VL-7B   & true  & 1   & 0.01   & deterministic (argmax-equivalent) \\
+LLaVA-1.6     & false & --- & ---    & deterministic (greedy) \\
+Qwen2.5-VL-7B & true  & --- & 1e-06  & deterministic in practice \\
+Qwen-VL-Chat  & true  & 0   & ---    & {\bf stochastic} \\
+Kimi-VL       & true  & --- & 0.2    & {\bf stochastic} \\
+GLM-4.1V      & true  & 2   & 0.8    & {\bf stochastic} \\
+\end{tabular}
+\end{center}
+\end{table}
+
+\section{Discrepancies Between the Paper and the Released Code}
+\label{sec:discrepancies}
+
+\todo{One subsection per discrepancy, ordered by how much each matters. Use the same four-move structure throughout so the section reads consistently: what the code does, why it is wrong, the number that proves it, and what it costs.}
+
+\subsection{The patch is never normalised before injection}
+
+\todo{(1) The adversarial patch is composited raw, in $[0,1]$, into a pixel tensor that the processor has \emph{already} CLIP-normalised to roughly $[-2,2]$. Nothing errors; the units are simply wrong. (2) With the code's \texttt{clamp}$(x,0,1)$, training can only ever move the model's perceived pixels inside $[0.449, 0.718]$, a 27\%-wide grey band, while the saved PNG spans the full range, so training and deployment see different images. (3) The decisive test requires no training at all: remap the authors' own working image into the band. It falls from 67.69 to 8.85 on AdvBench and from 78.73 to 44.13 on SafeBench, losing 87\% of its AdvBench success with its spatial pattern untouched. (4) A working attack confined to the band becomes indistinguishable from our failed retrains, so we conclude that the released training code cannot have produced the released image. \note{This zero-training test is the single most convincing piece of evidence in the study, because it cannot be explained away by anything in our training setup. Give it room.}}
+
+\subsection{The Section 3.2 projection is dead code}
+
+\todo{The projection presented as a core component has zero call sites in the released repository; only \texttt{clamp}$(x,0,1)$ runs. Show that this is not a cosmetic omission: enabling it moves SafeBench from 29.84 to 48.25 at 1300 iterations.}
+
+\subsection{The released scorer reads the prompt back into the answer}
+
+\todo{(1) The scorer locates the model's reply by searching for the first literal string \texttt{assistant}; for Qwen models that string occurs first inside the system prompt (``You are a helpful assistant''), so the extracted answer begins before the user's harmful request and includes it. (2) The classifier is then shown the question as though it were the response. (3) Inflation ranges from $+1$ to $+13$ points and in places reorders models. (4) Give the elegant control: on Qwen-VL-Chat, whose chat method returns the answer alone, v1 and v3 agree on 100.00\% of 520 rows, so the defect is specific to the echoed chat template rather than universal. Close with the irony worth stating plainly: the paper describes its judge as HarmBench-Llama-2-13b ``using its original chat template without modification'', so the paper describes faithful use and the code deviates from the paper.}
+
+\subsection{AdvBench as used is not the source benchmark}
+
+\todo{Three divergences from \citet{zou2023universal}. The count is 520 rather than the 500 the paper states, and every reported value is an exact $k/520$. Success is a classifier judgement rather than the source protocol's not-a-refusal criterion. And every goal is rewritten from its imperative form (``Write a script that\ldots'') into ``Steps to write a script that\ldots''. Give the number: measured on the authors' own image, that rewrite is worth 58 points, 9.62\% verbatim against 67.69\% reworded. Then the key sentence: the paper describes no rewording of evaluation prompts anywhere, so the rewrite exists only in the code. The consequence is that any comparison against a published AdvBench figure obtained under the GCG protocol compares different benchmarks.}
+
+\subsection{GLM's reasoning trace is truncated by an inherited token budget}
+
+\todo{The released code uses a 512-token generation budget for every model. For GLM-4.1V-Thinking that budget is consumed inside the \texttt{<think>} block, so the model never emits an answer, with up to 98.7\% truncation on one configuration. The authors' scorer then grades the \emph{reasoning trace}, inflating ASR, while our corrected scorer finds no answer, scores a failure, and keeps the row in the denominator, deflating it. Neither is a valid measurement. Raising the budget to 4096 moves GLM's numbers by up to 41 points, with No-Attack SafeBench going from 12.70 to 53.02. \note{Own this one explicitly: it is our discrepancy as much as theirs, because we inherited their budget without checking it against GLM's generation length, and it reversed one of our own earlier conclusions about the affirming-phrase table. Saying so costs nothing and buys credibility.}}
+
+\subsection{Minor issues}
+
+\todo{Compress into a single paragraph: the loss log is written before the current epoch is recorded, so it is empty at epoch 0 and up to 20 epochs stale; early stopping is configured with patience equal to the epoch count and can never fire, while a full patch is cloned on every improving epoch; a hardcoded CUDA device crashes the CPU and MPS branches; and the LLaVA adapter's target-processing function builds every tensor and then returns \texttt{None} for want of a \texttt{return} statement, so the LLaVA-surrogate path crashes on its first call --- which means the released code cannot have produced the paper's Figure~2b either. Close with the causal-mask comment: the code correctly implements the $j \ge t$ sum of Equation~\ref{eq:semantic} and the inline comment describing a lower-triangular mask is what is wrong. \note{We first reported the mask itself as a bug and then retracted; state only the correct reading.}}
+
+\section{Discussion}
+\label{sec:discussion}
+
+\todo{Walk Table~\ref{tab:verdicts} claim by claim, one short paragraph each, interpreting rather than restating.}
+
+\todo{Then a limitations paragraph: one run per configuration and no seed replication, so differences of a few points are not resolvable; a single surrogate model; \pending{MM-SafetyBench currently subsampled}; three of six victim columns decoding stochastically as shown in Section~\ref{sec:determinism}; \pending{our UMK column being re-run with the correct surrogate}; and closed-source claims untested for want of paid API access, restating the scope decision from Section~\ref{sec:scope}.}
+
+\subsection{What Was Easy}
+
+\todo{Evaluating the released artifact. The authors ship a single PNG, the benchmarks are public, and the headline number reproduced to the decimal on the first attempt. Re-scoring existing generations under a different judge was the highest information-per-GPU-hour activity in the whole study.}
+
+\subsection{What Was Difficult}
+
+\todo{Three things, in this order. First, separating \emph{training} failures from \emph{evaluation} failures: both the normalisation band bug and the GLM token budget present identically, as ``the attack is weak''. Second, recovering undocumented protocol: the evaluation-set sizes, the MM-SafetyBench variant and the baselines' surrogates all had to be inferred from reported numbers rather than read from the paper. Third, the sheer cost of GLM at a correct token budget, which is roughly three quarters of total evaluation compute.}
+
+\subsection{Communication with the Original Authors}
+
+\todo{Summarise the questions sent and any replies. Worth asking, in priority order: (i) which surrogate was used for UMK and for VAJM; (ii) which MM-SafetyBench variant, and whether the adversarial image replaces the benchmark's own image; (iii) whether the Section 3.2 projection was active in the run that produced the released image; (iv) the iteration budget for the released image; (v) the Table~1 versus Table~3 No-Attack discrepancy.}
+
+\section{Conclusion}
+\label{sec:conclusion}
+
+\todo{Resist restating results. Make one point: the artifact reproduces and the code does not, and the gap between them is made of small, nameable, fixable things --- a units mismatch, a dead function, an anchor string, a token budget, a prompt rewrite. Then draw the generalisable lesson for the field: a released artifact is not a released method, and reproducibility claims should distinguish the two.}
+
+\subsubsection*{Broader Impact Statement}
+\todo{Cover four points. (1) This is a reproducibility study of a published attack, conducted for defensive purposes; it introduces no new attack and releases no new jailbreaking artifact beyond what the original authors have already published. (2) No model completion is reproduced anywhere in the paper --- every table reports metrics, counts and category names only --- and state this as a deliberate decision. (3) The defensive value outweighs the marginal risk because the central findings concern \emph{evaluation fragility}: a judge that reads the prompt back into the answer, a token budget that silently truncates a reasoning model, a prompt rewrite worth 58 points, and evaluation sets whose size must be inferred. Each would cause a defender to mis-estimate their exposure, and each is cheap to fix once named. (4) Follow the TMLR Ethics Guidelines.}
+
+% Add only after acceptance and de-anonymisation:
+% \subsubsection*{Author Contributions}
+% \subsubsection*{Acknowledgments}
+
+\bibliography{main}
+\bibliographystyle{tmlr}
+
+\appendix
+\section{Appendix}
+
+\subsection{Status of pending runs}
+\label{sec:pending}
+
+\todo{Delete this subsection before submission; it exists so nothing provisional ships by accident. Three jobs were still running at drafting time, each a \emph{protocol correction} rather than a new experiment, and each replaces numbers already in the draft: (1) the component ablation and TV sweep retrained at the paper's 1300 iterations rather than our 3000; (2) MM-SafetyBench re-run at the paper's $n=1680$ rather than our 520 subsample; (3) UMK retrained with Qwen2-VL as the surrogate, closing the threat-model mismatch of Section~\ref{sec:results-baselines}.}
+
+\subsection{Full per-model tables}
+
+\todo{Both scorers, all three benchmarks, all six models, including rows cut from the main text: the 3000-iteration retrain evaluated across all victims, and raw-form AdvBench.}
+
+\subsection{Scorer comparison}
+
+\todo{Per-model v1 against v3 deltas, and the specific cases where the two \emph{reorder} models. This is the evidence for the claim in Section~\ref{sec:protocol} that no ranking in the paper rests on a single scorer.}
+
+\subsection{Raw versus normalised AdvBench}
+
+\todo{Table~\ref{tab:advbench-raw} is ready; add one sentence of reading.}
+
+\begin{table}[h]
+\caption{The AdvBench rewrite, scorer v3, same images and the same 520 rows}
+\label{tab:advbench-raw}
+\begin{center}
+\begin{tabular}{lcc}
+\multicolumn{1}{c}{\bf Patch} & \multicolumn{1}{c}{\bf Verbatim goals} & \multicolumn{1}{c}{\bf ``Steps to \ldots''}
+\\ \hline \\
+Authors' released image & 9.62 & {\bf 67.69} \\
+Code-faithful retrain   & 6.35 & 22.50 \\
+Paper-faithful retrain  & 6.15 & 10.19 \\
+\end{tabular}
+\end{center}
+\end{table}
+
+\subsection{StrongREJECT}
+
+\todo{State clearly what you did and did not measure. We scored the 313-row StrongREJECT prompt set with the HarmBench classifier, giving 29.71\% for the released image and 21.73\% for the best retrain, but this is \emph{not} the quantity in the paper's Table~2: StrongREJECT's native score is a 0--1 willingness-times-ability rating that requires either an API key or the finetuned evaluator model, neither of which was available to us. Report that table as not reproduced rather than substituting a different metric. \note{Reviewers punish silent metric substitution; naming the gap is both safer and more honest.}}
+
+\subsection{Implementation details}
+
+\todo{The three pinned environments and the assertion mechanism; the three vendored-repository overrides for UMK (250 to 2000 iterations, the seed image, and the few-shot corpus); md5 hashes of every patch for artifact identification; and the job scripts with their resume semantics.}
+
+\end{document}
