@@ -49,7 +49,13 @@
 # that finished rather than three half-filled rows: seed 0 of both branches is finished
 # before seed 1 starts, and every seed's cheap models land before its GLM cells.
 #
-# Budget: 6 trainings x ~5.2h = ~31h, plus ~10h eval per patch = ~60h. ~4 windows.
+# BUDGET, from measured times (not estimates):
+#   phase 1  3 x 4.7h CF + 3 x 7.3h PF            = 36.0 GPU-h   (2 windows)
+#   phase 2  6 patches x 9.7h of cells            = 58.2 GPU-h   (3 windows)
+#   total                                         = 94.2 GPU-h   (~5 windows)
+# Per-patch eval detail, measured in job 9187 on these exact sets (SB-315 + AB-520):
+#   Qwen2-VL 0.71h, Qwen2.5-VL 0.86h, Qwen-VL-Chat 0.84h, Kimi ~0.70h,
+#   LLaVA 2.51h, GLM 4.08h  ->  9.70h per patch.
 set -uo pipefail
 REPO="/home2/home/ankur_d/sm/UltraBreak-Repro"; cd "$REPO"
 source repro/bin/activate || { echo "[br] repro venv missing" >&2; exit 1; }
@@ -92,7 +98,16 @@ echo "$L CONTRACT GATE PASSED"
 
 # ── wall accounting ───────────────────────────────────────────────────────────
 WALL_LIMIT=86400
-RESERVE_TRAIN=25200       # 7h; a 1300-iteration training measured ~5.2h
+# MEASURED training wall times at 1300 iterations on the 50-row corpus, from the
+# existing artifacts' own 0.png -> 1300.png timestamps:
+#   no projection (CF path, a_* patches)        4.39 / 4.64 / 4.68 / 4.69 h  -> ~4.7h
+#   projection ACTIVE (PF path, Reading A)      7.24 h   (20.0 s/epoch vs 12.7)
+# PF is 1.5x slower because project() runs per row per epoch. A single flat reserve
+# would start a PF training with only ~7h left and lose all 7.24h at the wall, so the
+# reserve is PER BRANCH with ~25% headroom.
+RESERVE_CF=21600          # 6.0h for a ~4.7h CF training
+RESERVE_PF=32400          # 9.0h for a ~7.3h PF training
+reserve_for(){ [[ "$1" == pf ]] && echo $RESERVE_PF || echo $RESERVE_CF; }
 wall_left(){ echo $(( WALL_LIMIT - SECONDS )); }
 
 # Rates RECALIBRATED from job 9187's measured per-cell wall times on these exact
@@ -118,7 +133,11 @@ cell_fits(){   # cfg model -> 0 if the WHOLE cell fits in what is left
 }
 
 done_n(){ ls "$MARK" 2>/dev/null | wc -l; }
-units_done(){ echo $(( $(done_n) + $(ls -d outputs/{cf,pf}_strict_test50_1300_s*/ 2>/dev/null | wc -l) )); }
+# Count FINISHED trainings only - a 1300.png, not a directory. os.makedirs creates
+# outputs/<exp>/ before the first epoch, so counting directories would make a FAILED
+# training look like progress and defeat the no-progress latch below.
+trained_n(){ ls outputs/{cf,pf}_strict_test50_1300_s*/1300.png 2>/dev/null | wc -l; }
+units_done(){ echo $(( $(done_n) + $(trained_n) )); }
 START=$(units_done); RESUB=0
 resub(){ [[ $RESUB -eq 1 ]] && return; RESUB=1; local d; d=$(done_n)
   (( d >= TOTAL_CELLS )) && { echo "$L COMPLETE $d/$TOTAL_CELLS"; return; }
@@ -136,8 +155,9 @@ train_one(){   # branch seed
   local br="$1" sd="$2" exp patch
   exp="${br}_strict_test50_1300_s${sd}"; patch="outputs/${exp}/${CKPT}.png"
   [[ -f "$patch" ]] && return 0
-  if (( SECONDS > WALL_LIMIT - RESERVE_TRAIN )); then
-    echo "$L wall: $((wall_left)/60)m left, a training needs ~$((RESERVE_TRAIN/60))m - handing off"
+  local rsv; rsv=$(reserve_for "$br")
+  if (( SECONDS > WALL_LIMIT - rsv )); then
+    echo "$L wall: $(( $(wall_left) / 60 ))m left, a $br training reserves $((rsv/60))m - handing off"
     resub; exit 0
   fi
   if compgen -G "outputs/${exp}/*.png" >/dev/null; then
@@ -163,7 +183,7 @@ PY
   echo "$L trained $exp"
 }
 
-# ── evaluation ────────────────────────────────────────────────────────────────
+# ── evaluation helpers (the v1 scorer is materialised from the authors' commit) ──
 git show "${AUTH}:evaluation/evaluate.py" > "$STAGE/evaluate_v1.py" || exit 1
 cp "$STAGE/evaluate_v1.py" evaluation/_evaluate_v1_tmp.py
 trap 'rm -f "${REPO}/evaluation/_evaluate_v1_tmp.py"' EXIT
@@ -202,11 +222,33 @@ score(){   # cfg model
   [[ -f "results/${cfg}/${m}_harmbench_v3.csv" ]] && { touch "$MK"; echo "$L cell $(done_n)/$TOTAL_CELLS done: $cfg/$m"; }
 }
 
-# branch-major, then seed, then cheapest model: partial completion leaves COMPLETE rows
+# ── PHASE 1: every training first ─────────────────────────────────────────────
+# The patches are the irreplaceable part. An evaluation can always be redone from a
+# saved PNG; a training that never ran cannot. So all six land before any scoring
+# starts, and the artifacts are safe even if the chain is interrupted later.
+echo ""; echo "$L ===== PHASE 1: six trainings (CF s0,s1,s2 then PF s0,s1,s2) ====="
+for br in cf pf; do
+  for sd in "${SEEDS[@]}"; do
+    train_one "$br" "$sd" || { echo "$L training $br s$sd failed - stopping phase 1" >&2; break 2; }
+  done
+done
+TRAINED=$(trained_n)
+echo "$L phase 1: ${TRAINED}/6 patches on disk"
+if (( TRAINED < 6 )); then
+  echo "$L phase 1 incomplete - handing off before any evaluation, so trainings stay the priority"
+  resub end; echo "$L finished $(date)"; exit 0
+fi
+python reproducibility/check_branch.py seeds --require-trained || exit 1
+echo "$L ===== PHASE 1 COMPLETE: all six patches trained ====="
+
+# ── PHASE 2: evaluation, branch-major -> seed -> cheapest model ───────────────
+# Ordered so partial completion leaves COMPLETE rows rather than three half-filled
+# ones: seed 0 of a branch is fully scored before seed 1 begins, and within a seed the
+# cheap models land before the GLM cells that a window boundary would cost most.
+echo ""; echo "$L ===== PHASE 2: 72 evaluation cells ====="
 for br in cf pf; do
   for sd in "${SEEDS[@]}"; do
     exp="${br}_strict_test50_1300_s${sd}"; patch="outputs/${exp}/${CKPT}.png"
-    train_one "$br" "$sd" || continue
     if [[ "$br" == pf ]]; then
       python reproducibility/check_branch.py pf --exp "$exp" || {
         echo "$L CONTRACT VIOLATED by $exp - refusing to evaluate it" >&2; continue; }
@@ -252,7 +294,7 @@ for bench,tag in (("SafeBench","sb315"),("AdvBench","abnorm")):
         print(f"  {'paper':16s}" + "".join(f"{v:>22.2f}" for v in paper[bench]))
 PY
 
-echo ""; echo "$L cells: $(done_n)/$TOTAL_CELLS   trainings: $(ls -d outputs/{cf,pf}_strict_test50_1300_s*/ 2>/dev/null | wc -l)/6"
+echo ""; echo "$L cells: $(done_n)/$TOTAL_CELLS   trainings: $(trained_n)/6"
 if (( $(done_n) >= TOTAL_CELLS )); then
   echo "$L COMPLETE - both branches, three seeds, both scorers."
   python reproducibility/check_branch.py seeds --require-trained || true
