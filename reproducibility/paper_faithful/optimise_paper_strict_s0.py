@@ -48,14 +48,14 @@ PAPER = argparse.Namespace(
                                               # "SafeBench-Tiny, 50 queries" AND removes the only
                                               # corpus difference between CF and PF, so the two
                                               # branches differ in exactly the §3.2 treatment.
-    exp_name="pf_strict_test50_1300",
+    exp_name="pf_strict_test50_1300_s0",
     num_epochs=1301,        # epochs 0..1300 -> saves 1300.png; Table 4 "Iterations = 1300"
     base_epoch=0,
     init_space="image",     # random IMAGE init mapped through the projection ("random initialisation")
     no_projection=False,    # §3.2 projection ON
     clamp_latent=False,     # exactly ONE constraint, inside the projection (not an extra latent clamp)
     raw_patch_injection=False,  # D11 fix ON: patch normalised into CLIP space
-    seed=0,                 # paper does not seed (D7); we fix one for a reproducible artifact
+    seed=0,                 # S1: fixed seed 0 of {0,1,2}; the paper seeds nothing (D7)
     lr=0.01,                # Table 4
     tv_weight=0.5,          # Table 4 lambda_TV
     l2_weight=0.0,          # not in the paper; inert

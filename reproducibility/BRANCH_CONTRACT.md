@@ -25,14 +25,17 @@ the paper prescribes.*
 | CF4 | The whole `optimisation/` tree is byte-identical to `c4c276d` (6 files) | blob comparison |
 | CF5 | **Raw patch injection — the D11 bug is PRESENT.** `patch_only=False`, so the else-branch runs | source inspection of `Qwen2Adapter.compute_loss` + `patch_only=False` in the trainer |
 | CF6 | **No §3.2 projection** — the release has none (`project_patch()` has zero call sites) | the pristine-tree check covers it |
-| CF7 | **No seed.** The authors set none; adding one would deviate | no `manual_seed`/`random.seed`/`np.random.seed` in the trainer |
+| CF7 | **No seed inside the authors' file** — adding one would be a third changed line and break CF1. The seed is applied *externally* by `jobs/_seed_and_run.py`, which seeds `random`, `numpy`, `torch` and CUDA and then calls the untouched trainer's `main()`. See S1 for the seed set | no `manual_seed`/`random.seed`/`np.random.seed` in the trainer; the wrapper is used |
 | CF8 | Hyperparameters exactly as shipped: lr 0.01, λ_TV 0.5, λ_L2 0.0, `custom_loss=True`, clamp to [0,1] each step | guaranteed by CF1; re-asserted by string match |
 
-**Consequence of CF7 to state in the report:** a CF run is **one unseeded draw**. Its number cannot
-be reproduced by re-running, only by reusing the saved PNG. The patch is the artifact.
+**Consequence of CF7 to state in the report:** the authors' own runs were unseeded, so any single
+number they report is one draw from an unquantified distribution. Ours are seeded (S1), so our
+numbers carry a spread — which is the honest comparison and is stronger than matching a point
+estimate.
 
 ### Reference implementation
-`reproducibility/authors_code/optimisation/optimise_cf_strict.py` → `outputs/cf_strict_test50_1300/`
+`reproducibility/authors_code/optimisation/optimise_cf_strict_s{0,1,2}.py`, each launched through
+`jobs/_seed_and_run.py` → `outputs/cf_strict_test50_1300_s{0,1,2}/`
 
 ---
 
@@ -55,7 +58,7 @@ reported as our own extension; see `repro_notes/BEYOND_REPRO.md` §B25.
 | PF4 | Table 4 verbatim: lr 0.01, λ_TV 0.5, τ 0.5, ε 1e-4, `loss=semantic`, `loss_mode=attention`, transforms ON, scale 0.8–1.2, rotation ±15 | `run_config.json` |
 | PF5 | Corpus is **`./train_configs/test.csv`** — the authors' own SafeBench-Tiny file, byte-identical to `c4c276d`. The paper says "SafeBench-Tiny, 50 queries" and this file is exactly that, so using it satisfies the paper **and** removes the only corpus difference between CF and PF | named corpus is `test.csv`, 50 rows, blob-identical |
 | PF6 | Surrogate is `Qwen/Qwen2-VL-7B-Instruct` | `run_config.json` |
-| PF7 | `seed: 0` | `run_config.json` |
+| PF7 | `seed` ∈ **{0, 1, 2}** — the same three as CF, per S1 | `run_config.json` |
 
 **Two declared deviations, both unavoidable, both to be stated in the report.**
 
@@ -65,8 +68,8 @@ reported as our own extension; see `repro_notes/BEYOND_REPRO.md` §B25.
   axes, §3.2 *and* a keyword column that disagrees on 47/50 rows. PF5 now requires the authors'
   `test.csv` on both branches. **CF and PF therefore differ in exactly one thing: the §3.2
   treatment.** That is the whole point of having two branches.
-- **PF7, the seed.** The paper seeds nothing (D7). PF fixes seed 0 so the artifact is reproducible.
-  This is a deliberate deviation in the direction of *more* reproducibility.
+- **PF7, the seed.** The paper seeds nothing (D7). PF fixes seeds {0, 1, 2} per S1. This is a
+  deliberate deviation in the direction of *more* reproducibility.
 
 **Known property of PF — corrected 2026-10-22.** An earlier version of this file claimed Reading A
 confines the patch to `γ·[0,1] + β = [0.478, 0.741]` by arithmetic. **That is wrong, and applies
@@ -91,10 +94,39 @@ reporting — but it is a regularisation-scale effect, not an impossibility proo
 inside PF.
 
 ### Reference implementation
-`reproducibility/paper_faithful/optimise_paper_strict.py` → `outputs/pf_strict_test50_1300/`
+`reproducibility/paper_faithful/optimise_paper_strict_s{0,1,2}.py` (generated from the
+single-seed original, now removed) →
+`outputs/pf_strict_test50_1300_s{0,1,2}/`
 
 `repro_paper_faithful_1300` is the **superseded** PF artifact: correct on PF1–PF4, PF6, PF7 but
 trained on our `full50` corpus, so it fails the tightened PF5.
+
+---
+
+## S1 — seeds  ·  three fixed seeds, the same set on both branches
+
+**Checked first, as the contract requires: the paper says nothing about seeding.** Its full text was
+reviewed when `repro_notes/paper_specs.md` was built and records no seed clause, and a grep for
+`manual_seed` / `random.seed` / `np.random.seed` across the authors' `optimisation/` tree returns
+nothing (D7). There are no authors' seeds to adopt.
+
+| # | clause |
+|---|---|
+| S1a | Both branches train on **seeds {0, 1, 2}** — the *identical* set, so a CF-vs-PF difference can never be a difference of seeds |
+| S1b | Six trainings in all: `cf_strict_test50_1300_s{0,1,2}` and `pf_strict_test50_1300_s{0,1,2}` |
+| S1c | Every reported number for either branch is **mean ± spread over the three seeds**, never a single run. A single-seed figure may appear only in an appendix, labelled as one draw |
+| S1d | Three sources of randomness must be covered: patch initialisation (`torch.rand`), per-step transform parameters (`random.uniform`, `utils.py:37-39`), and target-embedding noise (`torch.randn_like`, `utils.py:185`) |
+
+**The honest limit, to be stated wherever the spread is reported.** Seeding pins the *sampling*, not
+the arithmetic. `grid_sample`'s backward pass has no deterministic CUDA kernel and every training
+step passes through it, so two runs at the same seed still drift. **Three seeds give a variance
+estimate; they do not make training bitwise reproducible.** The spread is therefore a lower bound on
+the true run-to-run variance, not an exact one.
+
+**Why this matters more than usual here.** Every disagreement this study reports has rested on n=1
+per configuration — explicitly caveated in `FINDINGS.md`, D7 and the O1/O2 entries. With three
+seeds, a gap like PF's 64.13 against the paper's 81.59 becomes a claim with an interval attached
+instead of a single draw against a single draw.
 
 ---
 

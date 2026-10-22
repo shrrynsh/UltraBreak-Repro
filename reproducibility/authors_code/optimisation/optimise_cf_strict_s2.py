@@ -79,7 +79,7 @@ def main():
     # optionally optimise against multiple surrogates; final method only uses one
     ensemble = [qwen_adapter]#, clip_adapter] #, llava_adapter]
     
-    exp_name = 'cf_strict_test50_1300'  # CF-DIFF 1/2: output dir only
+    exp_name = 'cf_strict_test50_1300_s2'  # CF-DIFF 1/2: output dir only
     base_epoch = 0
     
     os.makedirs(f"outputs/{exp_name}/", exist_ok=True)
@@ -98,7 +98,7 @@ def main():
     optimizer = optim.Adam([adv_patch], lr=lr) # tune the learning rate
 
     # Training loop
-    num_epochs = 1301  # CF-DIFF 2/2: epochs 0..1300 -> 1300.png (paper Table 4 = 1300 iters)
+    num_epochs = 1301  # CF-DIFF 2/2: epochs 0..1300 -> 1300.png (Table 4 = 1300 iters)
     patience = 5000  # Number of epochs to wait before stopping
     best_loss = float('inf')
     best_img = None

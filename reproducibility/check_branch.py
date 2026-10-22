@@ -39,7 +39,7 @@ def blob(path):
 
 
 # ---------------------------------------------------------------- CF
-def check_cf(trainer):
+def check_cf(trainer, seed=None):
     print(f"CF — code-faithful  (trainer: {trainer})")
     tp = REPO / trainer
     if not tp.exists():
@@ -80,7 +80,13 @@ def check_cf(trainer):
     check("CF6", "project_patch" not in out, "no §3.2 projection on this path")
 
     seeded = any(k in out for k in ("manual_seed", "random.seed", "np.random.seed"))
-    check("CF7", not seeded, "no seed set (the authors set none)")
+    w = REPO / "jobs/_seed_and_run.py"
+    wrap_ok = w.exists() and all(k in w.read_text()
+                                 for k in ("random.seed", "np.random.seed",
+                                           "torch.manual_seed", "torch.cuda.manual_seed_all"))
+    check("CF7", (not seeded) and wrap_ok,
+          "no seed inside the authors' file; applied externally by jobs/_seed_and_run.py"
+          + ("" if wrap_ok else "  <-- wrapper missing or does not seed all four RNGs"))
 
     hp = all(x in out for x in ("lr = 0.01", "tv_weight = 0.5", "l2_weight = 0.0",
                                 "custom_loss = True", "torch.clamp(adv_patch.data, 0, 1)"))
@@ -126,7 +132,8 @@ def check_pf(exp):
           + ("" if is_authors else
              "  <-- must be ./train_configs/test.csv, so CF and PF differ ONLY in the §3.2 treatment"))
     check("PF6", c.get("surrogates") == ["qwen"], f"surrogate = {c.get('surrogates')}")
-    check("PF7", c.get("seed") == 0, f"seed = {c.get('seed')} [declared deviation: the paper seeds nothing]")
+    check("PF7", c.get("seed") in (0, 1, 2),
+          f"seed = {c.get('seed')} in S1 set {{0,1,2}} [declared deviation: the paper seeds nothing]")
 
 
 # ---------------------------------------------------------------- eval
@@ -151,19 +158,71 @@ def check_eval(cfg, kind):
           + (f"  <-- {leak} is the AUTHORS' RELEASED IMAGE; a branch must be a retrain" if leak else ""))
 
 
+def check_seeds(require_trained=False):
+    """S1 — both branches on the identical seed set, and the paper has no seeds to adopt."""
+    print("S1 — seeds")
+    import pandas as pd  # noqa: F401  (kept for symmetry with the other checks)
+    cf = [REPO / f"reproducibility/authors_code/optimisation/optimise_cf_strict_s{s}.py" for s in (0, 1, 2)]
+    pf = [REPO / f"reproducibility/paper_faithful/optimise_paper_strict_s{s}.py" for s in (0, 1, 2)]
+    check("S1b-cf", all(p.exists() for p in cf),
+          f"CF trainers present: {sum(p.exists() for p in cf)}/3")
+    check("S1b-pf", all(p.exists() for p in pf),
+          f"PF trainers present: {sum(p.exists() for p in pf)}/3")
+
+    cf_names = [f"cf_strict_test50_1300_s{s}" for s in (0, 1, 2)]
+    pf_names = [f"pf_strict_test50_1300_s{s}" for s in (0, 1, 2)]
+    ok = all(n in p.read_text() for n, p in zip(cf_names, cf) if p.exists()) and \
+         all(n in p.read_text() for n, p in zip(pf_names, pf) if p.exists())
+    check("S1a", ok, "both branches target the identical seed set {0,1,2}")
+
+    pf_seeds = []
+    for sd, p in zip((0, 1, 2), pf):
+        if p.exists():
+            pf_seeds.append(f"seed={sd}," in p.read_text())
+    check("S1a-pf", all(pf_seeds) and len(pf_seeds) == 3,
+          "each PF trainer carries its own seed value")
+
+    # the authors have no seeds to adopt — assert that, do not assume it
+    import subprocess
+    hits = []
+    for f in ("optimise.py", "utils.py", "qwen2_adapter.py", "llava16_adapter.py", "base_adapter.py"):
+        t = blob(f"optimisation/{f}").decode(errors="replace")
+        if any(k in t for k in ("manual_seed", "random.seed", "np.random.seed")):
+            hits.append(f)
+    check("S1-authors", not hits,
+          "the authors' tree sets no seed, so there are none to adopt (D7)"
+          + (f"  <-- found seeding in {hits}: USE THEIRS" if hits else ""))
+
+    trained = [(n, (REPO / "outputs" / n / "1300.png").exists()) for n in cf_names + pf_names]
+    done = sum(v for _, v in trained)
+    msg = (f"trained patches on disk: {done}/6"
+           + ("" if done == 6 else "  (missing: " + ", ".join(n for n, v in trained if not v) + ")"))
+    if require_trained:
+        check("S1b-trained", done == 6, msg)
+    else:
+        print(f"  [INFO] S1b-trained: {msg} — a post-condition, not a pre-submit gate")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("branch", choices=["cf", "pf", "eval"])
+    ap.add_argument("branch", choices=["cf", "pf", "eval", "seeds"])
     ap.add_argument("--trainer", help="CF: path to the trainer script")
     ap.add_argument("--exp", help="PF: outputs/<exp> whose run_config.json to check")
     ap.add_argument("--config", help="eval: attack_configs/<config>.csv")
     ap.add_argument("--kind", choices=["safebench", "advbench", "mmsafety"])
+    ap.add_argument("--seed", type=int, choices=[0, 1, 2])
+    ap.add_argument("--require-trained", action="store_true",
+                    help="seeds: also require all 6 patches to exist (post-run check)")
     s = ap.parse_args()
 
     print(f"Branch contract: reproducibility/BRANCH_CONTRACT.md (authors' commit {AUTH})\n")
     if s.branch == "cf":
-        check_cf(s.trainer or "reproducibility/authors_code/optimisation/optimise_cf_strict.py")
+        default = ("reproducibility/authors_code/optimisation/"
+                   f"optimise_cf_strict_s{s.seed if s.seed is not None else 0}.py")
+        check_cf(s.trainer or default, s.seed)
+    elif s.branch == "seeds":
+        check_seeds(s.require_trained)
     elif s.branch == "pf":
         if not s.exp:
             ap.error("pf needs --exp")
