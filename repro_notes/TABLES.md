@@ -143,8 +143,11 @@ Note the paper's Table 3 omits Kimi-VL and averages over 5 models.
 
 ### SafeBench
 
-Paper row above, ours below. Ours is 5 models, judge v3; ablation patches are the `pf3_*` retrains,
-*Proposed* is the paper-faithful 1300-iteration patch (`cmp_pf_sb315`).
+Paper row above, ours below. Ours is 5 models, judge **v3**; ablation patches are the `pf3_*`
+evaluations of the `a_*_1300` retrains, *Proposed* is `repro_paper_faithful_1300` (`cmp_pf_sb315`).
+The authors' own v1 scorer was run on every cell too and agrees to within 4.6 points everywhere
+(identical on Qwen-VL-Chat and LLaVA, where D12 cannot fire): v1 means are 52.38 / 60.95 / 50.73 /
+62.98 against v3's 51.49 / 59.94 / 49.84 / 61.52, so **no conclusion here depends on the scorer.**
 
 | Variant | Qwen2-VL* | Qwen-VL-Chat | Qwen2.5-VL | LLaVA-1.6 | GLM-4.1V | 5-model mean |
 |---|---|---|---|---|---|---|
@@ -178,42 +181,82 @@ Overall MAE **15.75** points.
 
 Overall MAE **16.37** points.
 
-### The verdict: two of three components reproduce, the third does not
+### ⚠️ Which of OUR fixes are in these numbers
 
-The paper averages Table 3 over five models, so that is the fair comparison. Read as *how much ASR
-does removing this component cost*, relative to the proposed method:
+Audited 2026-10-22 from each run's own `outputs/<exp>/run_config.json`, not from memory.
 
-| component removed | paper (SB) | **ours (SB)** | paper (AB) | **ours (AB)** | verdict |
-|---|---|---|---|---|---|
-| input-space constraints | −14.22 | **−10.03** | −24.11 | **−11.61** | **reproduces** — same sign, same order of magnitude |
-| **semantic loss (CE)** | −14.67 | **−1.59** | −17.00 | **+13.08** | **does not reproduce** — costs nothing on SafeBench and *helps* on AdvBench |
-| attention weighting | −14.09 | **−11.68** | −17.69 | **−6.31** | **reproduces** on SafeBench; weak on AdvBench |
-
-The paper's three components are each worth almost exactly the same amount — −14.22, −14.67, −14.09
-— which is a suspiciously tidy result for three unrelated mechanisms. In our hands two of the three
-land in the right place and **the semantic loss, which is the paper's central methodological
-contribution, does not**: removing it changes the five-model SafeBench mean by 1.6 points, and on
-AdvBench the ablated patch is *better* than the full method by 13 points on average.
-
-**On the surrogate column the two ablations disagree about which component is load-bearing.** Both
-the paper and we find exactly one ablation that *beats* the full method on Qwen2-VL — but not the
-same one:
-
-| | paper | ours |
+| our fix | in these ablations? | is it the authors' protocol? |
 |---|---|---|
-| removing constraints | **+8.25** (89.84 > 81.59) | −25.40 |
-| removing the semantic loss | −9.21 | **+25.39** SB, **+69.81** AB (80.00 vs 10.19) |
-| removing attention weighting | −13.34 | −45.08 |
+| **D11 patch normalisation** | **YES** — `normalise_patch: true` on all six | **No.** The released code injects the patch raw. Only `codefaithful_exact_1300` has the bug. |
+| §3.2 projection | **No** — `projection: false` | Correct: our projection reading was retracted (D10) |
+| judge **v3** | both scorers were run | v1 is theirs; **v1 is reported beside v3 below and changes no conclusion** (max gap 4.6 pts) |
+| eval sets 315 / 520 | yes | **Yes** — recovered from the paper's own arithmetic |
+| AdvBench "Steps to…" | yes | **Yes** — paper §3.3; the released code does not do it |
+| GLM 4096 tokens (D14) | yes, every GLM cell | No — the released code uses 512, which truncates 98.7% of GLM rows |
 
-Our *w/o Semantic Loss* patch reaches **80.00% AdvBench white-box against the full method's 10.19%**
-— the single largest internal inversion in the study. Whatever the semantic loss contributes at
-1300 iterations, on this surrogate it is a net cost.
+**So these ablations are paper-faithful, not code-faithful: they carry the D11 fix.** That is the
+defensible choice for an ablation — with the bug present every variant is confined to the grey band
+and the whole table collapses into noise, measuring the bug instead of the components — but it must
+be labelled, and this page now labels it.
 
-**Two caveats that belong with these numbers.** (1) n=1 per configuration and no seed control, so
-only the large effects above are safe to interpret; the ±2–3-point rows are not. (2) *Proposed* here
-is the paper-faithful 1300-iteration patch, which is itself 17.5 points below the paper on the
-surrogate (64.13 vs 81.59) — the budget-gating finding of D11. Deltas measured against it are
-internally consistent but sit on a lower base than the paper's.
+### ⚠️ Correction (2026-10-22): the baseline these ablations must be compared against
+
+An ablation is only meaningful against a run that differs **by the ablated knob alone**. The
+`run_config.json` diffs show that is **not** `repro_paper_faithful_1300`, the *Proposed* row above:
+
+| vs `a_ce_1300` | projection | clamp_latent | init_space | differs by |
+|---|---|---|---|---|
+| `repro_paper_faithful_1300` | **true** | **false** | **image** | **3 structural settings + the loss** |
+| **`full50_normfix_noproj_seed0`** (job 773) | false | true | unit | **the loss, and nothing else** |
+
+All six ablation patches differ from **job 773** by exactly one field each, and job 773 differs from
+job 809 only in `num_epochs`. **Job 773 is the matched control; `repro_paper_faithful_1300` is not.**
+The deltas first published on this page used the wrong baseline and are withdrawn.
+
+### The verdict, against the matched baseline
+
+Component contribution = baseline ASR − ablated ASR, so **positive means the component helps**.
+White-box Qwen2-VL, judge v3. `@1300` is job 773 (23.49 SB / 1.35 AB); `@3000` is job 809
+(83.49 / 39.04); both are the full method with only the budget differing.
+
+| component removed | paper (SB) | **@1300 — paper's budget** | **@3000** | paper (AB) | **@1300 (AB)** | **@3000 (AB)** |
+|---|---|---|---|---|---|---|
+| input constraints | −8.25 | **−15.24** | **+51.74** | +9.42 | **−0.77** | **+36.92** |
+| semantic loss (CE) | +9.21 | **−66.03** | **+15.55** | +15.00 | **−78.65** | **+23.27** |
+| attention weighting | +13.34 | **+4.44** | **+68.89** | +25.19 | **+0.00** | **+37.89** |
+
+**At 3000 iterations all three components contribute positively and substantially — the paper's
+qualitative ablation claim reproduces. At the paper's own stated 1300 iterations not one of them
+does.** Two are within noise of zero and the semantic loss is strongly negative: swapping it for
+plain cross-entropy takes SafeBench from 23.49% to **89.52%** and AdvBench from 1.35% to **80.00%**.
+`a_ce_1300` is in fact the highest white-box SafeBench score in the entire study, above job 809
+(83.49) and above the released image (78.73).
+
+**The crossover is the finding.** The paper's semantic-attention loss is worse than the baseline it
+replaces at the budget the paper states, and better than it at 2.3× that budget:
+
+| budget | full method (semantic) | CE variant | winner |
+|---|---|---|---|
+| **1300 — the paper's** | 23.49 | **89.52** | **CE, by 66 points** |
+| 3000 | **83.49** | 67.94 | semantic, by 15.6 |
+
+Nothing else differs between those four runs. This is the same shape as the D11 budget-gating
+finding — the normalisation fix also only pays off past 1300 — so two separate parts of the method
+require a budget the paper does not state before they help at all. One coherent story, not two
+anomalies.
+
+### What the five-model table can and cannot support
+
+The 5-model rows above are correct as **measurements**, and they are what the paper's Table 3
+reports, so they belong on this page. They cannot yet carry a component-contribution claim beyond
+the surrogate, because **job 773 was only ever evaluated white-box** — its transfer cells do not
+exist. Completing that needs no training, only 8 eval cells of an existing patch
+(5 models × 2 benchmarks, minus the 2 that exist; GLM is ~6.7h of it, the rest ~3h).
+
+Until those land, read the five-model table as *absolute ASR beside the paper's* and the surrogate
+table above as *the component analysis*. The `Proposed` row is labelled `repro_paper_faithful_1300`
+and is a legitimate paper-faithful reproduction of the paper's own `Proposed` row — it is simply not
+the control for the ablation rows.
 
 Also unchanged and still worth noting: **the paper's own Table 1 and Table 3 disagree.** Table 1
 gives No-Attack SafeBench on Qwen2-VL as **18.41**; Table 3's "w/o Jailbreak Image" gives **15.87**.

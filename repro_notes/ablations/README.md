@@ -20,27 +20,43 @@ Qwen2-VL-7B, v3 judge.
 > [`#table-6`](../TABLES.md#table-6). **This page is kept as the record of our own 3001-epoch
 > experiment**, which is still the configuration that reproduces the headline (job 809, 83.49%).
 >
+> ### Baseline audit (2026-10-22) — and why THIS page's §1 was right all along
+>
+> Checked from each run's own `outputs/<exp>/run_config.json`. The five 3001-epoch ablations below
+> differ from **job 809** by exactly one field each, so §1's deltas are properly single-variable.
+> The 1300-iteration retrains differ from **job 773** by exactly one field each — *not* from
+> `repro_paper_faithful_1300`, which differs in three structural settings (projection on, no latent
+> clamp, image init). The first write-up of the 1300 table used that wrong baseline; corrected in
+> [`../TABLES.md`](../TABLES.md#table-3).
+>
 > ### The one result that only the pair of budgets reveals
 >
-> Component value = ASR lost by removing it, white-box Qwen2-VL SafeBench:
+> Component contribution = baseline − ablated, white-box Qwen2-VL SafeBench, judge v3.
+> Positive means the component helps. Both columns use their own matched control.
 >
-> | component removed | @1300 (paper budget) | @3000 (job 809 recipe) |
+> | component removed | **@1300** (vs job 773's 23.49) | **@3000** (vs job 809's 83.49) |
 > |---|---|---|
-> | attention weighting | −45.1 | −68.9 |
-> | input constraints | −25.4 | −51.7 |
-> | **semantic loss (CE)** | **+25.4 — removing it HELPS** | **−15.5 — removing it hurts** |
+> | attention weighting | **+4.44** | **+68.89** |
+> | input constraints | **−15.24** | **+51.74** |
+> | **semantic loss (CE)** | **−66.03 — it HURTS** | **+15.55** |
 >
-> **The semantic loss changes sign with the training budget, and nothing else about the run
-> changes.** At the paper's 1300 iterations the semantic-attention loss is a net *cost* on the
-> surrogate (89.52% without it against 64.13% with it; 80.00% against 10.19% on AdvBench); at 3000
-> it is worth +15.5 points, which is the direction the paper reports.
+> **At 3000 iterations every component contributes and the paper's ablation claim reproduces. At the
+> paper's stated 1300 iterations none of them does.** The semantic-attention loss is the extreme
+> case: replacing it with plain cross-entropy moves SafeBench from 23.49% to **89.52%** and AdvBench
+> from 1.35% to **80.00%**, and `a_ce_1300` is the best white-box SafeBench patch in the study.
 >
-> This is the same shape as the D11 budget-gating finding — the normalisation fix also only pays off
-> past 1300 iterations. Two of the method's parts therefore need a budget the paper does not state
-> before they help at all, which is a single coherent story rather than two unrelated anomalies.
+> | budget | full method (semantic) | CE variant | winner |
+> |---|---|---|---|
+> | **1300 — the paper's** | 23.49 | **89.52** | **CE, by 66 points** |
+> | 3000 | **83.49** | 67.94 | semantic, by 15.6 |
 >
-> Attention weighting and the input constraints keep their sign and their ranking at both budgets,
-> so **those two components reproduce**; the ordering attention > constraints holds either way.
+> Nothing but the budget differs across those four runs. It is the same shape as the D11
+> budget-gating finding, so two separate parts of the method need a budget the paper does not state
+> before they help at all — one story, not two anomalies.
+>
+> Attention weighting and the constraints keep their sign and ranking **at 3000**; at 1300 they are
+> within noise. So the component ranking attention > constraints > semantic holds only at the larger
+> budget.
 
 ---
 
