@@ -1,5 +1,68 @@
 # Branch audit — does every table have a code-faithful and a paper-faithful arm, and is each strict?
 
+> ## Definitions fixed by the project owner, 2026-10-22 — these supersede §1 below
+>
+> **Code-faithful (CF)** = the patch retrained through the **released code's training path**
+> (raw patch injection, no projection) at **1300 epochs, not the code's 5000**, and then
+> **evaluated as the paper prescribes** — because the release ships no evaluation pipeline at table
+> scale (see §5, Finding 4). So 1300-vs-5000 is **not** a deviation under this definition, and
+> neither is the GLM token budget, since the paper sets none.
+>
+> **Paper-faithful (PF)** = retrained **and** evaluated exactly as the paper prescribes:
+> patch normalised into CLIP space, Table 4 hyperparameters, 1300 iterations, 315 / 520 / 1680
+> evaluation sets, AdvBench in the §3.3 "Steps to…" form, and the HarmBench classifier with its
+> original template — i.e. the **v1** scorer.
+>
+> ### Status under these definitions
+>
+> | paper table | CF branch | PF branch | status |
+> |---|---|---|---|
+> | **1a** SafeBench | ✅ `cmp_cf_sb315` | ✅ `cmp_pf_sb315` | **both complete** — 6/6 models, v1 and v3 both scored, 315-row set |
+> | **1b** AdvBench | ✅ `cmp_cf_abnorm` | ✅ `cmp_pf_abnorm` | **both complete** — 6/6 models, v1 and v3 both scored, 520 rows, §3.3 form |
+> | **1c** MM-SafetyBench | ⚠️ `t1mm_cf_mmsafety` | ⚠️ `t1mm_pf_mmsafety` | **both exist but at n=520; the paper is n=1680.** The in-flight 1680 run carries no CF/PF arm |
+> | **2** StrongREJECT | ❌ | ❌ | blocked — native 0–1 scorer unavailable |
+> | **3** component ablation | ❌ **none** | ⚠️ `a_*_1300` | **PF only.** 5/6 models, which matches the paper (it omits Kimi-VL); v1 complete. But its PF reading differs from 1a/1b's — see the note below |
+> | **4** hyperparameters | n/a | n/a | descriptive; no run behind it |
+> | **5** affirming phrase | n/a | n/a | released image only, no retrain — no branch applies |
+> | **6** TV sweep | ❌ **none** | ⚠️ `a_tv*_1300` | **PF only.** 2/6 models, which matches the paper's two victims; v1 complete; same PF-reading mismatch |
+> | **9** closed models | ❌ | ❌ | blocked — paid API |
+> | **10** compute overhead | n/a | n/a | a per-step time ratio; branch-invariant |
+>
+> **Tally: 2 tables have both branches complete (1a, 1b). 1 has both at the wrong set size (1c).
+> 2 have PF only (3, 6). 2 are blocked (2, 9). 3 have no branch to be faithful to (4, 5, 10).**
+>
+> ### The three gaps that remain under these definitions
+>
+> 1. **MM-SafetyBench at n=1680 has no CF or PF arm.** Two configs × 6 models. This is the only
+>    thing stopping Table 1c from being a reproduction at the paper's own denominator.
+> 2. **Tables 3 and 6 have no CF arm** — only one code-faithful patch exists in the repository, so
+>    there are no code-faithful ablation or TV-sweep patches. Six trainings would create them, but
+>    with the bug present every variant collapses into the grey band, so the table would measure
+>    D11 rather than the components. **Recommend leaving it and stating so in the report.**
+> 3. **Two different PF readings are in use, and they disagree.** `repro_paper_faithful_1300`
+>    (Tables 1a/1b) applies §3.2 as an explicit **projection ON**; the ablation patches
+>    (Tables 3/6) use **normalisation ON, projection OFF**. The projection reading was *retracted*
+>    (D10: as wired it over-smooths 3.7× and cannot produce an artifact resembling
+>    `ultrabreak.png`), so the ablations use the project's **current** reading and Table 1's PF row
+>    uses the **superseded** one. One of the two has to move before the PF column is internally
+>    consistent.
+>
+> ### What is NOT a problem under these definitions
+>
+> - **1300 vs 5000 epochs** — CF is defined at 1300.
+> - **The judge** — v1 is the paper's own scorer and it is already computed on **every** cell of
+>   every branch above, including all of Tables 3 and 6. No GPU work needed to report it.
+> - **GLM at 4096 tokens** — evaluation follows the paper, which specifies no budget.
+> - **Borrowing the evaluation set from the paper for CF** — required by the definition, since the
+>   release ships only a 20-row demo config.
+>
+> The one residual deviation on the CF side is the **training corpus**: `codefaithful_exact_1300`
+> used our `full50` file rather than the code's own `train_configs/test.csv`, whose `keywords`
+> column differs on 47/50 rows and feeds the attention weighting (§3 below). Fixing it is one
+> retrain; it is the only thing between the CF arm and the definition above.
+
+---
+
 **Date: 2026-10-22.** A focused audit, no new experiments. For each paper table: does a
 code-faithful (CF) arm exist, does a paper-faithful (PF) arm exist, and does each one *strictly*
 match its own definition? Every row below was verified from the authors' commit `c4c276d`, from each
