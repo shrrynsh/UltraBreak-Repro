@@ -239,3 +239,4 @@ AGENTS.md
 
 # shift-study job bookkeeping (resume markers only; all results ARE tracked)
 /aaai_ugc/results/.markers/
+evaluation/_evaluate_v1_tmp.py
