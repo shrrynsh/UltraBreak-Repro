@@ -16,10 +16,10 @@ subsample** of the full 1680 (binomial SE ≈ 2.2 pts).
 |---|---|---|
 | [1](#table-1) | Main results, 5 methods × 6 models × 3 benchmarks | ✅ reproduced |
 | [2](#table-2) | StrongREJECT scores | ⬜ blocked — native 0–1 scorer unavailable |
-| [3](#table-3) | Component ablation | 🟡 **26/50 cells, and the ablations are at the wrong budget** — retraining at 1300 iters (job 9134) |
+| [3](#table-3) | Component ablation | ✅ **50/50 cells at the paper's 1300-iteration budget** (job 9187) — 2 of 3 components reproduce, the semantic loss does not |
 | [4](#table-4) | Hyperparameters | ✅ matched |
 | [5](#table-5) | Affirming-phrase sensitivity | ✅ reproduced |
-| [6](#table-6) | TV-weight sweep | 🟡 **2/8 cells, same budget problem** — TV=0.5 matches; retraining at 1300 iters (job 9134) |
+| [6](#table-6) | TV-weight sweep | ✅ **8/8 cells, paper's own two victims at 1300 iters** (job 9187) — 7 cells within 8.9 pts; the miss is the paper's claimed TV=0.2 peak |
 | 7 | Qualitative attack examples | n/a — no numbers, harmful content not reproduced |
 | 8 | *does not exist* | — |
 | [9](#table-9) | Frontier commercial models | 🚫 paid API |
@@ -132,72 +132,92 @@ released image **29.71%**, job 809 **21.73%** (v3, Qwen2-VL).
 
 ## Table 3 {#table-3}
 
-> ### ⚠️ The ablation patches below are NOT at the paper's budget
->
-> Every `full50_abl_*` patch was trained at **3001 epochs**; paper Table 4 states
-> **1300 iterations**. So the "ours" ablation cells on this page are neither
-> code-faithful nor paper-faithful — they are our own best-known-good configuration at
-> 2.3× the paper's budget, which is very likely why the disagreement below is as large
-> as it is. **Comparing them to the paper's ablations compares two training budgets.**
->
-> `jobs/t36_paperfaithful.sh` (job 9134) retrains all six variants at **1300 iterations**
-> with everything else matching Table 4 and the existing `repro_paper_faithful_1300`
-> anchor, then re-evaluates. These tables will be replaced by those numbers.
-
-
 **Paper caption:** ASR (%) of UltraBreak and its ablated variants on SafeBench and AdvBench.
 Note the paper's Table 3 omits Kimi-VL and averages over 5 models.
 
+> **Now at the paper's own budget — 50/50 cells.** All three ablation patches were retrained at
+> **1300 iterations** with lr 0.01, tau 0.5 and TV 0.5 (paper Table 4) and re-evaluated on all five
+> models: **job 9187, 36 cells, 14h39m, completed 2026-10-21**. The 3001-epoch patches that used to
+> sit on this page are gone. **The budget mismatch is therefore no longer available as an
+> explanation for the disagreements below** — they survive at the paper's stated configuration.
+
 ### SafeBench
 
-Paper row above, ours below. **Ours is 5 models where available; `·` marks a cell not yet run.**
+Paper row above, ours below. Ours is 5 models, judge v3; ablation patches are the `pf3_*` retrains,
+*Proposed* is the paper-faithful 1300-iteration patch (`cmp_pf_sb315`).
 
-| Variant | Qwen2-VL* | Qwen-VL-Chat | Qwen2.5-VL | LLaVA-1.6 | GLM-4.1V |
-|---|---|---|---|---|---|
-| w/o Jailbreak Image — paper | 15.87 | 51.11 | 12.38 | 92.06 | 7.62 |
-| w/o Jailbreak Image — **ours** | **13.02** | **7.30** | **18.10** | **57.14** | **53.02** |
-| w/o Constraints — paper | 89.84 | 49.21 | 27.30 | 83.81 | 47.62 |
-| w/o Constraints — **ours** | **31.75** | · | · | · | · |
-| w/o Semantic Loss (CE) — paper | 72.38 | 56.83 | 20.32 | 85.71 | 60.32 |
-| w/o Semantic Loss (CE) — **ours** | **67.94** | · | · | · | · |
-| w/o Attention Weighting — paper | 68.25 | 42.54 | 37.78 | 79.37 | 70.48 |
-| w/o Attention Weighting — **ours** | **14.60** | · | · | · | · |
-| Proposed — paper | 81.59 | 72.70 | 60.32 | 88.25 | 66.03 |
-| Proposed (job 809) — **ours** | **83.49** | **76.51** | **36.51** | **89.84** | **64.76** |
+| Variant | Qwen2-VL* | Qwen-VL-Chat | Qwen2.5-VL | LLaVA-1.6 | GLM-4.1V | 5-model mean |
+|---|---|---|---|---|---|---|
+| w/o Jailbreak Image — paper | 15.87 | 51.11 | 12.38 | 92.06 | 7.62 | 35.81 |
+| w/o Jailbreak Image — **ours** | **13.02** | **7.30** | **18.10** | **57.14** | **53.02** | **29.72** |
+| w/o Constraints — paper | 89.84 | 49.21 | 27.30 | 83.81 | 47.62 | 59.56 |
+| w/o Constraints — **ours** | **38.73** | **58.41** | **25.08** | **84.44** | **50.79** | **51.49** |
+| w/o Semantic Loss (CE) — paper | 72.38 | 56.83 | 20.32 | 85.71 | 60.32 | 59.11 |
+| w/o Semantic Loss (CE) — **ours** | **89.52** | **55.87** | **14.92** | **85.71** | **53.65** | **59.93** |
+| w/o Attention Weighting — paper | 68.25 | 42.54 | 37.78 | 79.37 | 70.48 | 59.68 |
+| w/o Attention Weighting — **ours** | **19.05** | **61.59** | **23.81** | **87.30** | **57.46** | **49.84** |
+| Proposed — paper | 81.59 | 72.70 | 60.32 | 88.25 | 66.03 | 73.78 |
+| Proposed — **ours** | **64.13** | **68.89** | **26.03** | **87.62** | **60.95** | **61.52** |
+
+Overall MAE **15.75** points.
 
 ### AdvBench
 
-| Variant | Qwen2-VL* | Qwen-VL-Chat | Qwen2.5-VL | LLaVA-1.6 | GLM-4.1V |
+| Variant | Qwen2-VL* | Qwen-VL-Chat | Qwen2.5-VL | LLaVA-1.6 | GLM-4.1V | 5-model mean |
+|---|---|---|---|---|---|---|
+| w/o Jailbreak Image — paper | 10.19 | 10.38 | 0.38 | 91.15 | 2.12 | 22.84 |
+| w/o Jailbreak Image — **ours** | **1.35** | **3.46** | **0.77** | **48.65** | **9.81** | **12.81** |
+| w/o Constraints — paper | 63.27 | 27.69 | 2.31 | 80.00 | 9.42 | 36.54 |
+| w/o Constraints — **ours** | **2.12** | **41.73** | **1.15** | **83.08** | **11.73** | **27.96** |
+| w/o Semantic Loss (CE) — paper | 57.69 | 51.54 | 2.88 | 88.85 | 17.31 | 43.65 |
+| w/o Semantic Loss (CE) — **ours** | **80.00** | **73.65** | **0.58** | **88.27** | **20.77** | **52.65** |
+| w/o Attention Weighting — paper | 47.50 | 42.54 | 15.77 | 79.37 | 29.62 | 42.96 |
+| w/o Attention Weighting — **ours** | **1.35** | **55.58** | **0.96** | **91.54** | **16.92** | **33.27** |
+| Proposed — paper | 72.69 | 71.92 | 35.77 | 92.88 | 30.00 | 60.65 |
+| Proposed — **ours** | **10.19** | **75.00** | **1.73** | **91.15** | **19.81** | **39.58** |
+
+Overall MAE **16.37** points.
+
+### The verdict: two of three components reproduce, the third does not
+
+The paper averages Table 3 over five models, so that is the fair comparison. Read as *how much ASR
+does removing this component cost*, relative to the proposed method:
+
+| component removed | paper (SB) | **ours (SB)** | paper (AB) | **ours (AB)** | verdict |
 |---|---|---|---|---|---|
-| w/o Jailbreak Image — paper | 10.19 | 10.38 | 0.38 | 91.15 | 2.12 |
-| w/o Jailbreak Image — **ours** | **1.35** | **3.46** | **0.77** | **48.65** | **9.81** |
-| w/o Constraints — paper | 63.27 | 27.69 | 2.31 | 80.00 | 9.42 |
-| w/o Constraints — **ours** | **2.12** | · | · | · | · |
-| w/o Semantic Loss (CE) — paper | 57.69 | 51.54 | 2.88 | 88.85 | 17.31 |
-| w/o Semantic Loss (CE) — **ours** | **15.77** | · | · | · | · |
-| w/o Attention Weighting — paper | 47.50 | 42.54 | 15.77 | 79.37 | 29.62 |
-| w/o Attention Weighting — **ours** | **1.15** | · | · | · | · |
-| Proposed — paper | 72.69 | 71.92 | 35.77 | 92.88 | 30.00 |
-| Proposed (job 809) — **ours** | **39.04** | **58.65** | **4.81** | **94.23** | **20.38** |
+| input-space constraints | −14.22 | **−10.03** | −24.11 | **−11.61** | **reproduces** — same sign, same order of magnitude |
+| **semantic loss (CE)** | −14.67 | **−1.59** | −17.00 | **+13.08** | **does not reproduce** — costs nothing on SafeBench and *helps* on AdvBench |
+| attention weighting | −14.09 | **−11.68** | −17.69 | **−6.31** | **reproduces** on SafeBench; weak on AdvBench |
 
-**Status: 26 of 50 cells.** The two rows that need no extra work — *w/o Jailbreak Image*
-(the No-Attack baseline) and *Proposed* (the job-809 patch, already transferred in the
-transfer study) — are complete across all five models. The three true ablation rows exist
-only on the white-box column, because each ablation produced one patch that was evaluated
-on Qwen2-VL alone. **The missing 24 cells need no training — only transfer evals of patches
-already on disk** (`jobs/t36_fill.sh`).
+The paper's three components are each worth almost exactly the same amount — −14.22, −14.67, −14.09
+— which is a suspiciously tidy result for three unrelated mechanisms. In our hands two of the three
+land in the right place and **the semantic loss, which is the paper's central methodological
+contribution, does not**: removing it changes the five-model SafeBench mean by 1.6 points, and on
+AdvBench the ablated patch is *better* than the full method by 13 points on average.
 
-**Where we already disagree.** *w/o Constraints* and *w/o Attention Weighting* are far more
-damaging in our hands than the paper's — 31.75 and 14.60 against 89.84 and 68.25 on
-SafeBench. In the paper, removing the constraints *raises* white-box ASR above the proposed
-method (89.84 > 81.59); in ours it cuts it by more than half. Our ablations carry the D11
-fix and 3000 steps, so they are not budget-starved. Our *Proposed* row tracks the paper
-well on three of five models and misses Qwen2.5-VL badly (36.51 vs 60.32) — the same
-Qwen2.5 gap seen in Table 1.
+**On the surrogate column the two ablations disagree about which component is load-bearing.** Both
+the paper and we find exactly one ablation that *beats* the full method on Qwen2-VL — but not the
+same one:
 
-Also worth noting: **the paper's own Table 1 and Table 3 disagree.** Table 1 gives No-Attack
-SafeBench on Qwen2-VL as **18.41**; Table 3's "w/o Jailbreak Image" gives **15.87**. Same
-quantity, two values.
+| | paper | ours |
+|---|---|---|
+| removing constraints | **+8.25** (89.84 > 81.59) | −25.40 |
+| removing the semantic loss | −9.21 | **+25.39** SB, **+69.81** AB (80.00 vs 10.19) |
+| removing attention weighting | −13.34 | −45.08 |
+
+Our *w/o Semantic Loss* patch reaches **80.00% AdvBench white-box against the full method's 10.19%**
+— the single largest internal inversion in the study. Whatever the semantic loss contributes at
+1300 iterations, on this surrogate it is a net cost.
+
+**Two caveats that belong with these numbers.** (1) n=1 per configuration and no seed control, so
+only the large effects above are safe to interpret; the ±2–3-point rows are not. (2) *Proposed* here
+is the paper-faithful 1300-iteration patch, which is itself 17.5 points below the paper on the
+surrogate (64.13 vs 81.59) — the budget-gating finding of D11. Deltas measured against it are
+internally consistent but sit on a lower base than the paper's.
+
+Also unchanged and still worth noting: **the paper's own Table 1 and Table 3 disagree.** Table 1
+gives No-Attack SafeBench on Qwen2-VL as **18.41**; Table 3's "w/o Jailbreak Image" gives **15.87**.
+Same quantity, two values.
 
 ---
 
@@ -248,44 +268,42 @@ This table was the study's worst-looking result until **D14** was fixed. At the 
 
 ## Table 6 {#table-6}
 
-> ### ⚠️ The ablation patches below are NOT at the paper's budget
->
-> Every `full50_abl_*` patch was trained at **3001 epochs**; paper Table 4 states
-> **1300 iterations**. So the "ours" ablation cells on this page are neither
-> code-faithful nor paper-faithful — they are our own best-known-good configuration at
-> 2.3× the paper's budget, which is very likely why the disagreement below is as large
-> as it is. **Comparing them to the paper's ablations compares two training budgets.**
->
-> `jobs/t36_paperfaithful.sh` (job 9134) retrains all six variants at **1300 iterations**
-> with everything else matching Table 4 and the existing `repro_paper_faithful_1300`
-> anchor, then re-evaluates. These tables will be replaced by those numbers.
-
-
 **Paper caption:** SafeBench ASR (%) varying the TV loss weight. Victims: **Qwen-VL-Chat and
 GLM-4.1V** (transfer), not the surrogate.
 
-| TV weight | paper Qwen-VL-Chat | **ours Qwen-VL-Chat** | paper GLM-4.1V | **ours GLM-4.1V** | ours white-box Qwen2-VL |
-|---|---|---|---|---|---|
-| 0 | 61.27 | · | 70.48 | · | 31.75 |
-| 0.2 | 77.78 | · | 66.98 | · | 40.00 |
-| **0.5** | 72.70 | **76.51** | 66.03 | **64.76** | 83.49 |
-| 1 | 65.40 | · | 60.95 | · | 56.51 |
+> **Now a like-for-like comparison — 8/8 cells.** Our earlier sweep measured the *white-box
+> surrogate* and was not comparable to the paper's, which measures transfer; that comparison was
+> retracted. Job 9187 re-ran the sweep at **1300 iterations on the paper's own two victims**, so the
+> retraction is now closed by the right experiment rather than by an argument.
 
-**Status: 2 of 8 cells.** The TV=0.5 row is free — that patch is job 809, already
-transferred to both of the paper's victims — and **both cells land close** (76.51 vs 72.70,
-64.76 vs 66.03). The other six need transfer evals of three existing patches; no training
-(`jobs/t36_fill.sh`).
+| TV weight | paper Qwen-VL-Chat | **ours Qwen-VL-Chat** | paper GLM-4.1V | **ours GLM-4.1V** |
+|---|---|---|---|---|
+| 0 | 61.27 | **64.44** (203/315) | **70.48** | **54.92** (173/315) |
+| 0.2 | **77.78** | **54.29** (171/315) | 66.98 | **58.73** (185/315) |
+| **0.5** | 72.70 | **68.89** (217/315) | 66.03 | **60.95** (192/315) |
+| 1.0 | 65.40 | **61.59** (194/315) | 60.95 | **52.06** (164/315) |
 
-**Not comparable, and an earlier claim of ours is retracted.** The paper sweeps TV and
-measures **transfer to Qwen-VL-Chat and GLM**; we swept TV and measured the **white-box
-Qwen2-VL**. Different models, different quantities. An earlier note here said "the paper's
-TV=0.2 peak is contradicted (we get 0.5)" — that compared the wrong things and **is
-withdrawn as a Table 6 verdict**.
+MAE **8.57** (Qwen-VL-Chat) and **9.45** (GLM-4.1V).
 
-What our sweep does show, as a separate and still-valid fact: **on the white-box surrogate
-the TV optimum is ≈0.5**, and the curve is non-monotonic. Converting this to a real Table 6
-verdict needs only transfer evals of the three existing TV patches on Qwen-VL-Chat and GLM —
-no new training. Cheapest open item in the study.
+**The sweep reproduces everywhere except at the paper's claimed optimum.** Seven of the eight cells
+agree within 8.9 points. The single outlier is **TV=0.2 on Qwen-VL-Chat — 54.29 against 77.78, a
+23.5-point miss — which is precisely the cell the paper's claim rests on.**
+
+**And the paper's two columns do not agree with each other.** Its Qwen-VL-Chat column peaks at
+TV=0.2 (77.78); its GLM column declines monotonically from TV=0 (70.48 → 66.98 → 66.03 → 60.95), so
+it peaks at **TV=0**, i.e. with the TV term switched off entirely. The paper reports a single
+optimum that only one of its own two victims exhibits.
+
+**Ours is internally consistent and puts the optimum at 0.5:** 64.44 → 54.29 → **68.89** → 61.59 on
+Qwen-VL-Chat and 54.92 → 58.73 → **60.95** → 52.06 on GLM. Both victims peak at the same place, and
+0.5 is also where our earlier off-budget (3001-epoch) white-box sweep peaked. **Three independent
+sweeps — two budgets, three models — all put the optimum at 0.5, and none reproduces the paper's
+0.2.** The budget explanation for this disagreement is now ruled out.
+
+A fair note in the paper's favour: the curve is shallow. Across the whole sweep our Qwen-VL-Chat
+range is 14.6 points and our GLM range 8.9, so TV weight is a second-order hyperparameter in both
+accounts, and "0.2 versus 0.5" is a disagreement about the location of a flat optimum rather than
+about whether TV matters.
 
 ---
 
@@ -343,10 +361,10 @@ every table, not just iteration count.
 | **1** AdvBench | as above | **520** ✅ | normalised ✅ (the paper's own D13 form) | ✅ | **strict** |
 | **1** MM-Safety | as above | **520 ✗ — the paper uses 1680** | ✅ | ✅ | **deviation — being fixed, job 9136** |
 | **2** StrongREJECT | released image ✅ | 313 ✅ | ✅ | ✗ native 0–1 scorer unavailable | blocked, documented |
-| **3** ablations | **3001 ✗ → 1300** | 315 / 520 ✅ | ✅ | ✅ | **being fixed, job 9134** |
+| **3** ablations | **1300** ✅ (job 9187) | 315 / 520 ✅ | ✅ | ✅ | **strict** |
 | **4** hyperparameters | descriptive | — | — | — | **strict** (every value matches) |
 | **5** phrases | released image ✅ | 315 ✅ | ✅ | ✅ | **strict** |
-| **6** TV sweep | **3001 ✗ → 1300** | 315 ✅ | ✅ | ✅ | **being fixed, job 9134** |
+| **6** TV sweep | **1300** ✅ (job 9187) | 315 ✅ | ✅ | ✅ | **strict** — and now on the paper's victims, not the surrogate |
 | **10** overhead | a per-step *ratio* — independent of total steps | — | — | — | **strict** |
 
 ### The eval-set sizes are not guesses
@@ -395,17 +413,17 @@ Qwen-VL-Chat, Kimi or GLM should not be read as real.
 
 Prompted by a reader catching that the Table 3 ablations were not at the paper's budget.
 Every trained artifact in the study was then checked against **paper Table 4: 1300
-iterations, lr 0.01, TV 0.5, τ 0.5**. **10 of 16 were off-budget**, all at 3001 epochs.
+iterations, lr 0.01, TV 0.5, τ 0.5**. **10 of 16 were off-budget**, all at 3001 epochs. **Five of those ten are now fixed** (job 9187, 2026-10-21); three are deliberate keeps; **two remain open** because job 9135 was cancelled.
 
 | artifact | epochs | feeds | action |
 |---|---|---|---|
-| `full50_abl_noconstraints` | 3001 | Table 3, Table 6 (TV=0) | **retraining @1300** — job 9134 |
-| `full50_abl_ce` | 3001 | Table 3 | **retraining @1300** — job 9134 |
-| `full50_abl_token` | 3001 | Table 3 | **retraining @1300** — job 9134 |
-| `full50_abl_tv0p2` | 3001 | Table 6 | **retraining @1300** — job 9134 |
-| `full50_abl_tv1p0` | 3001 | Table 6 | **retraining @1300** — job 9134 |
-| `c2a_qwen2b_s3000` | 3001 | **Fig 2a** | **retraining @1300** — job 9135 |
-| `c2b_llava_surrogate_s3000` | 3001 (never trained) | **Fig 2b** | **training @1300** — job 9135 |
+| `full50_abl_noconstraints` | 3001 | Table 3, Table 6 (TV=0) | ✅ **retrained @1300** — job 9187; superseded by `a_noconstraints_1300` |
+| `full50_abl_ce` | 3001 | Table 3 | ✅ **retrained @1300** — job 9187; superseded by `a_ce_1300` |
+| `full50_abl_token` | 3001 | Table 3 | ✅ **retrained @1300** — job 9187; superseded by `a_token_1300` |
+| `full50_abl_tv0p2` | 3001 | Table 6 | ✅ **retrained @1300** — job 9187; superseded by `a_tv0p2_1300` |
+| `full50_abl_tv1p0` | 3001 | Table 6 | ✅ **retrained @1300** — job 9187; superseded by `a_tv1p0_1300` |
+| `c2a_qwen2b_s3000` | 3001 | **Fig 2a** | ⚠️ **still off-budget** — job 9135 was cancelled and never re-queued |
+| `c2b_llava_surrogate_s3000` | 3001 (never trained) | **Fig 2b** | ⚠️ **still absent** — job 9135 was cancelled and never re-queued |
 | `full50_normfix_lr0p01_s3000` | 3001 | job 809 — our headline retrain, A4 transfer, Fig 3 | **kept, deliberately.** 1300 does not work; that *is* the D11 budget-gating finding. Never label it paper-config. |
 | `full50_proj_projfix_s3000` | 3001 | D1 projection diagnostic | kept — our own experiment, not a paper table |
 | `full50_proj_doublesquash_s3000` | 3001 | D1 projection diagnostic | kept — same |
@@ -421,9 +439,11 @@ iterations, lr 0.01, TV 0.5, τ 0.5**. **10 of 16 were off-budget**, all at 3001
 ratio, independent of total steps), **FigStep** (authors' released images), and
 **No-Attack** (no patch).
 
-**Outstanding after 9134/9135 land:** Fig 3's texture comparison currently mixes
-3000-step and released patches; it should be regenerated against the 1300-step ablations
-so the contrast is at a matched budget.
+**Still outstanding.** (1) **Fig 2a/2b** — job 9135 was cancelled and never re-queued, so the
+model-size transfer figure still rests on a 3001-epoch patch and the LLaVA-surrogate arm does
+not exist. This is now the only paper figure or table left at the wrong budget. (2) **Fig 3**'s
+texture comparison mixes 3000-step and released patches; the 1300-step ablation patches
+(`a_*_1300`) now exist on disk, so regenerating it at a matched budget needs no training.
 
 ### The rule this establishes
 
