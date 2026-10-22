@@ -53,16 +53,18 @@ reported as our own extension; see `repro_notes/BEYOND_REPRO.md` §B25.
 | PF2 | Patch normalised into CLIP space before injection — `normalise_patch: true`. Required for type-consistency: Eq. 10 feeds the model, whose input is the CLIP-normalised tensor, so a raw [0,1] patch is a scale error | `run_config.json` |
 | PF3 | `num_epochs = 1301` → 1300 iterations (Table 4) | `run_config.json` |
 | PF4 | Table 4 verbatim: lr 0.01, λ_TV 0.5, τ 0.5, ε 1e-4, `loss=semantic`, `loss_mode=attention`, transforms ON, scale 0.8–1.2, rotation ±15 | `run_config.json` |
-| PF5 | Corpus is SafeBench-Tiny, **50 queries** | row count of the named corpus |
+| PF5 | Corpus is **`./train_configs/test.csv`** — the authors' own SafeBench-Tiny file, byte-identical to `c4c276d`. The paper says "SafeBench-Tiny, 50 queries" and this file is exactly that, so using it satisfies the paper **and** removes the only corpus difference between CF and PF | named corpus is `test.csv`, 50 rows, blob-identical |
 | PF6 | Surrogate is `Qwen/Qwen2-VL-7B-Instruct` | `run_config.json` |
 | PF7 | `seed: 0` | `run_config.json` |
 
 **Two declared deviations, both unavoidable, both to be stated in the report.**
 
-- **PF5, the keyword field.** The paper specifies SafeBench-Tiny's 50 queries but never defines the
-  `keywords` column that drives the attention weighting. PF uses our
-  `safebench-tiny_jailbroken_mode_full50.csv`. There is no paper standard to violate, but it differs
-  from the authors' `test.csv` on 47/50 rows, so it is a documented choice, not a match.
+- ~~**PF5, the keyword field.**~~ **Resolved 2026-10-22.** The paper never defines the `keywords`
+  column that drives the attention weighting, so there was no paper standard — but leaving PF on our
+  `full50` file while CF used the authors' `test.csv` would make the two branches differ on **two**
+  axes, §3.2 *and* a keyword column that disagrees on 47/50 rows. PF5 now requires the authors'
+  `test.csv` on both branches. **CF and PF therefore differ in exactly one thing: the §3.2
+  treatment.** That is the whole point of having two branches.
 - **PF7, the seed.** The paper seeds nothing (D7). PF fixes seed 0 so the artifact is reproducible.
   This is a deliberate deviation in the direction of *more* reproducibility.
 
@@ -73,7 +75,10 @@ setting.** That is a *finding about the paper as written*, and reporting it is t
 a literal PF branch. Do not "fix" it inside PF.
 
 ### Reference implementation
-`reproducibility/paper_faithful/optimise_paper.py` → `outputs/repro_paper_faithful_1300/`
+`reproducibility/paper_faithful/optimise_paper_strict.py` → `outputs/pf_strict_test50_1300/`
+
+`repro_paper_faithful_1300` is the **superseded** PF artifact: correct on PF1–PF4, PF6, PF7 but
+trained on our `full50` corpus, so it fails the tightened PF5.
 
 ---
 
@@ -85,6 +90,7 @@ a literal PF branch. Do not "fix" it inside PF.
 | E2 | AdvBench: **520** rows, built with `--normalize` — the §3.3 `"Steps to " + q` form | row count + >90% of rows start with "Steps to" |
 | E3 | MM-SafetyBench: **1680** rows (recovered from the paper's own arithmetic, 12/12 fit, p=5.1e-10) | config row count |
 | E4 | Every config points at the branch's own patch and nothing else | unique image column |
+| E7 | **No branch config may reference `outputs/ultrabreak.png`.** Both branches are *retrains*; the released image appears only as a separate, labelled reference row, never inside a branch | image column scanned for `ultrabreak` |
 | E5 | **Headline scorer is v1** — `c4c276d:evaluation/evaluate.py`, the paper's "HarmBench-Llama-2-13b, original chat template, without modification". v3 is reported beside it as our correction, never instead of it | both `_harmbench.csv` and `_harmbench_v3.csv` present per cell |
 | E6 | GLM generates at **4096** tokens. The release hardcodes 512, which truncates GLM mid-reasoning on up to 98.7% of rows; the paper states no budget, so the paper's protocol does not require 512 | GLM venv in use |
 

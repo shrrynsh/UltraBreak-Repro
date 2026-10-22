@@ -116,12 +116,15 @@ def check_pf(exp):
     off = {k: v for k, (v, want) in t4.items() if v != want}
     check("PF4", not off, "Table 4 verbatim" + (f" — off: {off}" if off else ""))
 
-    corpus = REPO / c.get("train_config", "")
-    n = sum(1 for _ in open(corpus)) - 1 if corpus.exists() else -1
     import pandas as pd
+    tc = c.get("train_config", "")
+    corpus = REPO / tc
     n = len(pd.read_csv(corpus)) if corpus.exists() else -1
-    check("PF5", n == 50, f"SafeBench-Tiny, 50 queries (got {n}) "
-                          f"[declared deviation: the keyword column is ours, the paper defines none]")
+    is_authors = corpus.exists() and blob("train_configs/test.csv") == corpus.read_bytes()
+    check("PF5", n == 50 and is_authors,
+          f"corpus = {tc} ({n} rows), authors' test.csv: {is_authors}"
+          + ("" if is_authors else
+             "  <-- must be ./train_configs/test.csv, so CF and PF differ ONLY in the §3.2 treatment"))
     check("PF6", c.get("surrogates") == ["qwen"], f"surrogate = {c.get('surrogates')}")
     check("PF7", c.get("seed") == 0, f"seed = {c.get('seed')} [declared deviation: the paper seeds nothing]")
 
@@ -142,6 +145,10 @@ def check_eval(cfg, kind):
         check("E2b", frac > 0.9, f"{frac:.1%} of rows in the §3.3 'Steps to' form")
     imgs = sorted(set(d["image"].astype(str)))
     check("E4", len(imgs) == 1, f"single patch across the config: {imgs if len(imgs) < 4 else len(imgs)}")
+    leak = [i for i in imgs if "ultrabreak" in i]
+    check("E7", not leak,
+          "no released image in this branch config"
+          + (f"  <-- {leak} is the AUTHORS' RELEASED IMAGE; a branch must be a retrain" if leak else ""))
 
 
 def main():
