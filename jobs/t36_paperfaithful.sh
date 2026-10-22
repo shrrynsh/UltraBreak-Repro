@@ -264,8 +264,9 @@ for tv,cfg,pq,pg in TV:
 print("\n  Paper's peak is TV=0.2 on Qwen-VL-Chat (77.78). Does ours peak there too?")
 PY
 
-echo ""; echo "$L markers: $(done_n)"
-if (( $(done_n) >= 28 )); then
+echo ""; echo "$L markers: $(done_n)/36"
+TOTAL_CELLS=36   # 5 models x (3 variants x 2 benchmarks) + 3 TV x 2 victims
+if (( $(done_n) >= TOTAL_CELLS )); then
   echo "$L COMPLETE - handing the GPU to the MM-SafetyBench n=1680 run"
   chain_to jobs/t1_mm1680.sh ub_mm1680
 else
