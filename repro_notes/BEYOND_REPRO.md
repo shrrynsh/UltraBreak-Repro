@@ -12,7 +12,7 @@ pass is named on every number because it is part of the result.
 
 ---
 
-## Tier 1 — New experiments (fresh generations; each carries its own claim)
+## Tier 1 — New experiments and proposed corrections (each carries its own claim)
 
 ### B1 · Value-range remap test — the defect isolated without training
 
@@ -121,6 +121,65 @@ contrast** — it shows that measured success on transfer targets is format-boun
 `E4b_*`) and the job is written (`aaai_ugc/jobs/E4_transfer.sh`); 900 generations per target would
 close it. No existing run substitutes — every `noattack_*` run drops the TPG clause *as well as* the
 image, which conflates the two factors the experiment exists to separate.
+
+### B25 · Reading §3.2 as normalisation rather than compression — our proposed correction
+
+**Status: this is now an extension, not a reproduction.** Paper-faithful is defined as the *literal*
+reading of §3.2 (`BRANCH_CONTRACT.md`, PF1: the projection is an active compression step). This item
+is the competing reading, and the case that it is what the authors must actually have done.
+
+**The ambiguity.** §3.2 defines `x_proj = clip(γ·x + β, 0, 1)` with γ = CLIP_STD and β = CLIP_MEAN,
+and Eq. 10 feeds the projected patch to the model. γ and β appear in exactly one other role in this
+pipeline: converting between raw pixel space and the CLIP-normalised tensor the vision encoder
+reads. So the equation can be read two ways, and the paper's prose does not settle it.
+
+| | **Reading A — compression** (= our PF) | **Reading B — normalisation** (this item) |
+|---|---|---|
+| what §3.2 does | adds a constraint; squashes the patch toward the mean | performs the scale conversion the code omits |
+| supported by | the stated purpose, *"to reduce reliance on extreme pixel values"* | the fact that Eq. 10's consumer takes normalised input, so a raw [0,1] patch is a type error |
+| implementation | `projection: true` + `normalise_patch: true` | `projection: false` + `normalise_patch: true` |
+| reference run | `repro_paper_faithful_1300` | `full50_normfix_noproj_seed0` @1300, `full50_normfix_lr0p01_s3000` @3000 |
+
+**Four lines of evidence for Reading B.**
+
+1. **Reading A cannot produce the authors' own artifact.** This is arithmetic, not a measurement.
+   Under Reading A the saved patch is confined to `γ·[0,1] + β = [0.478, 0.741]`. Our Reading-A run
+   lands exactly there, with σ = **0.025**. `ultrabreak.png` spans the full range with σ = **0.165**
+   — **6.6× more contrast**. No hyperparameter setting closes that, because the bound is structural.
+2. **Confining a working patch to that band destroys it** (B1, zero training). Remapping the
+   authors' own image into the band drops AdvBench from **67.69% to 8.85%** with its spatial pattern
+   untouched, and non-refusal from 82% to 21%. Reading A's band is not a benign constraint.
+3. **The TV term interacts badly with it** (D10). With the projection active the TV penalty is
+   effectively scaled by `1/γ`, so the paper's own λ_TV = 0.5 over-smooths by **3.7×**. The released
+   image is sharply textured, with 91% of its spectral power above 32 cycles/image.
+4. **Reading B reproduces the headline; Reading A does not.** At 3000 iterations Reading B reaches
+   **83.49%** SafeBench against the paper's 81.59%. Reading A reaches **64.13%** at 1300 and is
+   capped by (1).
+
+**The honest qualification, which belongs in the same paragraph as the claim.** Reading B is *not*
+better at the paper's stated budget — it is worse:
+
+| | SafeBench @1300 | SafeBench @3000 |
+|---|---|---|
+| Reading A (PF) | **64.13** | — |
+| Reading B | 23.49 | **83.49** |
+
+So the improvement is **budget-gated**: Reading B un-stalls the optimisation but needs 2.3× the
+iterations the paper specifies before it overtakes. Reading A looks better at 1300 precisely because
+it is a *constrained* problem that converges faster to a worse optimum. The claim to make is
+therefore narrow and defensible: **Reading B is the only one of the two that can produce an artifact
+like the released one, and the only one that reproduces the headline number — at a budget the paper
+does not state.** It is not a free win.
+
+**What moves into this section with it.** The six `a_*_1300` ablation patches and the TV sweep are
+Reading-B runs (`projection: false`), so they **fail PF1** and cannot be presented as the paper's
+Table 3 or Table 6. Their results stand as our own component analysis under Reading B — including
+the budget crossover of the semantic loss (−66.03 at 1300, +15.55 at 3000) and the TV optimum at
+0.5 rather than the paper's 0.2 — and `repro_notes/TABLES.md` carries them with that label.
+
+**What a PF arm for Tables 3 and 6 would need:** nine retrains with the projection ON (six
+ablations, three TV points), ~47 GPU-h. Deferred pending a decision; the component question is
+already answered under Reading B.
 
 ### B6 · A fourth benchmark, and a generalisation ranking across five patches
 
@@ -321,7 +380,7 @@ statement the study makes and it costs nothing to verify.
 
 | report location | items |
 |---|---|
-| **New section — Results Beyond the Original Paper** | B2, B3, B4, B5, B6, B9, B10, B11 |
+| **New section — Results Beyond the Original Paper** | B2, B3, B4, B5, B6, B9, B10, B11, **B25** |
 | Results → Released Artifact | B1, B24a |
 | Methodology → Recovering the Undocumented Protocol | B8, B15 |
 | Results → Baselines | B14, B7 |
@@ -337,7 +396,7 @@ slot for Tier 1 and 2 and is the one structural gap in the skeleton.
 
 | item | status |
 |---|---|
-| B1, B2, B3, B4, B6, B8–B15, Tier 3, Tier 4 | **complete** |
+| B1, B2, B3, B4, B6, B8–B15, B25, Tier 3, Tier 4 | **complete** |
 | B5 | **partial** — patch-only contrast; `base`/`shuffled` arms need 900 generations per target |
 | B7 | **queued, never executed** — behind job 9187 → `ub_mm1680` |
 | Paper Table 2 (StrongREJECT native scorer) | **blocked** — needs an API key or the finetuned SR evaluator |
