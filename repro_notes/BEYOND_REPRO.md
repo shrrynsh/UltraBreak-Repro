@@ -142,16 +142,29 @@ reads. So the equation can be read two ways, and the paper's prose does not sett
 
 **Four lines of evidence for Reading B.**
 
-1. **Reading A cannot produce the authors' own artifact.** This is arithmetic, not a measurement.
-   Under Reading A the saved patch is confined to `γ·[0,1] + β = [0.478, 0.741]`. Our Reading-A run
-   lands exactly there, with σ = **0.025**. `ultrabreak.png` spans the full range with σ = **0.165**
-   — **6.6× more contrast**. No hyperparameter setting closes that, because the bound is structural.
+1. **Reading A loses 3.1× of the contrast the released artifact has.** *(Corrected 2026-10-22: an
+   earlier draft claimed an arithmetic bound of `[0.478, 0.741]`. That holds only when the latent is
+   additionally clamped — the O1 double-constraint. With the latent free, as in the paper-faithful
+   run, `γx + β` can reach the full range. The claim is empirical, not a proof.)* Measured σ:
+   released image **0.164**, Reading B @1300 **0.142**, raw injection @1300 **0.131**, Reading A
+   @1300 **0.052** with range [0.027, 0.816]. The mechanism is item 3 below.
 2. **Confining a working patch to that band destroys it** (B1, zero training). Remapping the
    authors' own image into the band drops AdvBench from **67.69% to 8.85%** with its spatial pattern
    untouched, and non-refusal from 82% to 21%. Reading A's band is not a benign constraint.
-3. **The TV term interacts badly with it** (D10). With the projection active the TV penalty is
-   effectively scaled by `1/γ`, so the paper's own λ_TV = 0.5 over-smooths by **3.7×**. The released
-   image is sharply textured, with 91% of its spectral power above 32 cycles/image.
+3. **The TV term lands in the wrong space, and this is the mechanism for item 1** (D10). Under
+   Reading A the TV and L2 penalties act on the **raw latent** (`optimise_proj.py:248-249`), which
+   lives in normalised space where a unit of distance is `1/γ ≈ 3.7×` larger. So the paper's own
+   λ_TV = 0.5 is effectively 3.7× stronger than the same number under Reading B. The released image
+   is sharply textured — 91% of its spectral power above 32 cycles/image — which is what an
+   under-regularised patch looks like.
+   **A structural observation that sharpens the whole comparison.** Under Reading A the model is fed
+   `(clip(γx+β,0,1) − β)/γ`, which equals **x** wherever the clip does not bind. So projection and
+   normalisation are *inverses*, and the §3.2 projection changes nothing about what the model sees
+   except bounding the effective latent to [−1.79, 1.93]. **Readings A and B are therefore the same
+   optimisation under a reparameterisation**, differing in only two things: which space the TV/L2
+   penalties live in (3.7× scale), and the parameter scale Adam sees at a fixed lr = 0.01. The
+   A-vs-B question is not "two different methods" — it is "which space does the regulariser belong
+   in", and the paper does not say.
 4. **Reading B reproduces the headline; Reading A does not.** At 3000 iterations Reading B reaches
    **83.49%** SafeBench against the paper's 81.59%. Reading A reaches **64.13%** at 1300 and is
    capped by (1).

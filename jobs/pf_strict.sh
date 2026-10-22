@@ -119,9 +119,12 @@ import sys, numpy as np
 from PIL import Image
 a=np.asarray(Image.open(sys.argv[1]).convert("RGB")).astype(float)/255.0
 print(f"[pfs] patch: std={a.std():.4f} range=[{a.min():.3f},{a.max():.3f}]")
-print("[pfs] EXPECTED under Reading A: range inside gamma*[0,1]+beta = [0.478,0.741], std ~0.025.")
-print("[pfs] The released ultrabreak.png spans [0,1] with std ~0.165 - 6.6x more contrast.")
-print("[pfs] That bound is ARITHMETIC, not a bug: it is the finding the literal reading produces.")
+print("[pfs] EXPECTED under Reading A (latent UNclamped, so no hard range bound):")
+print("[pfs]   std ~0.05, range ~[0.03,0.82]  (repro_paper_faithful_1300 measured 0.0523 / [0.027,0.816])")
+print("[pfs] For reference: released ultrabreak.png std 0.164, Reading B @1300 std 0.142,")
+print("[pfs]   raw injection @1300 std 0.131. So Reading A gives ~3.1x less contrast.")
+print("[pfs] Cause is D10 - TV/L2 act on the raw latent, i.e. in normalised space, where they are")
+print("[pfs]   effectively 1/gamma ~ 3.7x stronger. A regularisation-scale effect, not a bug.")
 PY
 else
   echo "$L training already done ($PATCH)"

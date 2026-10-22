@@ -68,11 +68,27 @@ reported as our own extension; see `repro_notes/BEYOND_REPRO.md` §B25.
 - **PF7, the seed.** The paper seeds nothing (D7). PF fixes seed 0 so the artifact is reproducible.
   This is a deliberate deviation in the direction of *more* reproducibility.
 
-**Known property of PF, not a defect of the checker.** Under Reading A the saved patch is confined
-to `γ·[0,1] + β = [0.478, 0.741]` by arithmetic, giving σ ≈ 0.025 against the released image's
-σ ≈ 0.165. **So PF cannot produce an artifact resembling `ultrabreak.png`, at any hyperparameter
-setting.** That is a *finding about the paper as written*, and reporting it is the point of having
-a literal PF branch. Do not "fix" it inside PF.
+**Known property of PF — corrected 2026-10-22.** An earlier version of this file claimed Reading A
+confines the patch to `γ·[0,1] + β = [0.478, 0.741]` by arithmetic. **That is wrong, and applies
+only when the latent is *also* clamped to [0,1]** (the O1 double-constraint; `clamp_latent: true`,
+as in `full50_proj_doublesquash_s3000`, measured `[0.325, 0.855]`, σ = 0.044). PF sets
+`clamp_latent: false`, so the latent is free and `γx + β` reaches the full `[0,1]` for
+x ∈ [−1.79, 1.93]. **There is no hard range bound in PF.**
+
+What is true is empirical, not arithmetic:
+
+| patch | σ | range |
+|---|---|---|
+| released `ultrabreak.png` | **0.164** | [0.000, 1.000] |
+| Reading B @1300 (job 773) | 0.142 | [0.000, 1.000] |
+| CF, raw injection @1300 | 0.131 | [0.000, 1.000] |
+| **PF, Reading A @1300** | **0.052** | [0.027, 0.816] |
+
+PF produces **3.1× less contrast** than the released image. The mechanism is D10: the TV and L2
+penalties act on the **raw latent** (`optimise_proj.py:248-249`), i.e. in normalised space, where
+they are effectively `1/γ ≈ 3.7×` stronger. That is a real property of the literal reading and worth
+reporting — but it is a regularisation-scale effect, not an impossibility proof. Do not "fix" it
+inside PF.
 
 ### Reference implementation
 `reproducibility/paper_faithful/optimise_paper_strict.py` → `outputs/pf_strict_test50_1300/`
