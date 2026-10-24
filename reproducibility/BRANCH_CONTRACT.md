@@ -151,20 +151,50 @@ instead of a single draw against a single draw.
 
 ## Status of every paper table under this contract
 
-| table | CF | PF | what is missing |
-|---|---|---|---|
-| **1a** SafeBench | 🔄 job 9243 | ✅ `cmp_pf_sb315` | CF being rebuilt strictly; old CF used our corpus |
-| **1b** AdvBench | 🔄 job 9243 | ✅ `cmp_pf_abnorm` | same |
-| **1c** MM-SafetyBench | ❌ | ❌ | both arms exist only at n=520; **E3 requires 1680** |
-| **2** StrongREJECT | ❌ | ❌ | blocked — native 0–1 scorer unavailable |
-| **3** ablations | ❌ | ❌ | **the `a_*_1300` patches have `projection: false` → they fail PF1 and are now extension work.** A PF arm needs 6 retrains with the projection ON |
-| **4** hyperparameters | n/a | n/a | descriptive |
-| **5** affirming phrase | n/a | n/a | released image, no retrain |
-| **6** TV sweep | ❌ | ❌ | same as Table 3 — fails PF1; needs 3 retrains with the projection ON |
-| **9** closed models | ❌ | ❌ | blocked — paid API |
-| **10** overhead | n/a | n/a | a per-step ratio, branch-invariant |
+**Audited 2026-10-24 by `python reproducibility/audit_tables.py` — run it, do not trust this table.**
+A branch row counts only if, for *every* seed in {0,1,2}, a config exists whose patch is that
+branch's contract patch for that seed, evaluated on every model the table reports, under both
+judges (E5).
 
-**Choosing Reading A has one clean side effect worth noting:** a PF ablation arm would be trained
-with the projection ON, which is also what the PF anchor (`repro_paper_faithful_1300`) uses — so the
-ablations and their baseline would differ by the ablated knob alone. That removes the baseline
-mismatch recorded in `repro_notes/TABLES.md` §Table 3 at the same time.
+| table | CF | PF | seeds | what it is built on today |
+|---|---|---|---|---|
+| **1a** SafeBench 315 | ❌ | ❌ | 0/3 | CF `codefaithful_exact_1300` (fails CF1, CF3a), PF `repro_paper_faithful_1300` (fails PF5) |
+| **1b** AdvBench 520 | ❌ | ❌ | 0/3 | same two artifacts |
+| **1c** MM-SafetyBench | ❌ | ❌ | 0/3 | same two artifacts, and only at n=520 — **E3 wants 1680** |
+| **2** StrongREJECT | — | — | — | no branch row: native 0–1 scorer unavailable |
+| **3** ablations | **n/a by definition** | ❌ | 0/3 | `a_*_1300` fail PF1 (projection off) and PF5 (corpus); needs **9** PF-style variant retrains |
+| **4** hyperparameters | — | — | — | descriptive, no patch |
+| **5** affirming phrase | — | — | — | the authors' released image, no retrain |
+| **6** TV sweep | **n/a by definition** | ❌ | 0/3 | as Table 3; needs **6** PF-style variant retrains |
+| **9** closed models | — | — | — | blocked: paid API |
+| **10** overhead | — | — | — | a per-step ratio, branch-invariant |
+
+**Not one table currently satisfies either branch.** Every CF/PF number in `TABLES.md` predates
+this contract: the six contract patches finished training on 2026-10-24 and **have never been
+evaluated** — no `attack_configs/*.csv` references them and no `results/*strict*` exists.
+
+### Tables 3 and 6 can never have a CF arm
+
+CF1 permits at most two changed lines, `exp_name` and `num_epochs`. An ablation must change a
+third (`--loss ce`, `--loss_mode token`, `--tv_weight 0.2`). **A code-faithful ablation is a
+contradiction in terms**, so those cells are marked *n/a by definition* rather than missing. The
+`a_*_1300` runs stay where they already are: extension work, not a branch.
+
+### A PF ablation row is not built on an anchor patch
+
+It is a PF-style retrain — projection ON, authors' `test.csv`, Table 4 — with exactly **one** knob
+moved. That moved knob is the experiment, so it is an *intended* deviation from PF4, not a
+violation; `audit_tables.py` reports it as such. Expected artifacts, three seeds each:
+
+| table | variants | artifacts |
+|---|---|---|
+| 3 | no-constraints, CE, token | `pf_abl_{noconstraints,ce,token}_s{0,1,2}` |
+| 6 | TV 0.2, TV 1.0 | `pf_tv{0p2,1p0}_s{0,1,2}` |
+
+The unablated row of Table 3 and TV=0.5 of Table 6 **are the PF anchor itself**, so they need no
+extra training — they come free with Table 1.
+
+**Choosing Reading A has one clean side effect worth noting:** a PF ablation arm is trained with
+the projection ON, exactly like the PF anchor it is compared against — so the ablations and their
+baseline differ by the ablated knob alone. That removes the baseline mismatch recorded in
+`repro_notes/TABLES.md` §Table 3 at the same time.
