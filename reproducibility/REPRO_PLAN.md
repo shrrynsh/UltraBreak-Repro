@@ -46,7 +46,9 @@ not branch rows — except where §2 P2 applies.
 
 ---
 
-## 2. Three defects found in this inspection. Fix before submitting anything.
+## 2. Three defects found in this inspection — all three FIXED 2026-10-24
+
+Kept in full because each one is a finding the report should carry, not just a chore.
 
 ### P1 — the eval gate will happily evaluate the wrong patch  ⚠️ highest risk
 
@@ -169,93 +171,129 @@ writes its CSV only at the end, so a cell that does not fit loses everything it 
 
 ---
 
-## 5. MM-SafetyBench is 72% of the bill. Here is the evidence for cutting it down.
+## 5. MM-SafetyBench: what config did the authors actually use?
 
-E3 requires the full 1680. At 6 patches that is 199.8 GPU-h, plus 114.7 GPU-h to finish the
-reference rows — **314 GPU-h, ~13 windows, for one sub-table.**
+**Investigated 2026-10-24, on the owner's instruction, before deciding anything.** Three sources
+were checked: the released code, the paper's text, and the arithmetic of the paper's own numbers.
 
-I checked whether the fixed 520-row subsample is good enough, using rows where the 520 set is a
-true subset of the 1680 set (519/519 overlap, identical prompt form). Judge v3:
+### 5.1 The released code contains no MM-SafetyBench at all
 
-| row | model | 520 | 1680 | Δ |
-|---|---|---|---|---|
-| released image | Qwen2-VL | 37.31 | 38.69 | **+1.38** |
-| released image | Qwen-VL-Chat | 55.96 | 58.75 | **+2.79** |
-| No Attack | Qwen2-VL | 22.88 | 25.54 | **+2.65** |
-| No Attack | Qwen-VL-Chat | 18.27 | 20.06 | **+1.79** |
+`git ls-tree -r c4c276d` is 30 files. It ships `datasets/safebench.csv`,
+`datasets/SafeBench-Tiny.csv`, `datasets/adv_bench.csv` — and nothing else. A case-insensitive
+grep for `mm.safety` across every blob in the authors' commit returns **zero hits**: no dataset, no
+loader, no config, no mention.
 
-**On every valid comparison the subsample is low by 1.4–2.8 points, and the offset is stable.**
-Judge v1 agrees where it exists (No Attack: +1.94 and +1.79).
-(The +13 to +17 point "deltas" that appear for VAJM and UMK are **not** subsample bias — they are
-the P2 prompt-form bug. Dropping them is the correct reading, and the fact that they looked like
-subsample noise is itself a reason to fix P2 before trusting any 1680 row.)
+**So there is no authors' config to copy.** Every MM-SafetyBench decision in this study is ours,
+and must be declared as ours.
 
-Because the 520 subsample is **fixed** (stratified, seed 0) and identical across every patch, it
-preserves within-study comparisons exactly — CF vs PF, and seed vs seed — and adds uncertainty
-only to the absolute comparison against the paper, where it is a known ~+2 point understatement.
+### 5.2 The paper says one thing, and only one thing
 
-### Recommended: full 1680 on the surrogate column, fixed 520 on the transfer columns
+> "MM-SafetyBench is a dataset specifically designed for multimodal safety evaluation, which
+> contains **1680 harmful targets covering 13 scenarios**."
 
-| | cost | what it buys |
+That is the entire specification. Our `datasets/mm_safetybench.csv` matches it exactly: **1680
+rows, 13 scenarios**, the `Text_only` split.
+
+### 5.3 The arithmetic confirms 1680 uniquely — and rules out any subsample
+
+An ASR printed to two decimals is a rounded fraction n/N, so a denominator either fits a reported
+value or it cannot have produced it. Testing all **24** MM-SafetyBench values the paper prints
+(4 methods × 6 models) against every N from 100 to 6000:
+
+| N | fits | meaning |
 |---|---|---|
-| MM-520, 6 patches × 6 models | 66.0 GPU-h | every seed-vs-seed and CF-vs-PF comparison, exact |
-| MM-1680, 6 patches × **surrogate only** | 15.0 GPU-h | one fully E3-compliant column |
-| MM-1680 surrogate, rebuild vajm + umk after P2 | 5.0 GPU-h | the two reference cells that column needs |
-| **total** | **86 GPU-h** | vs **314** for everything at 1680 |
+| 520 | **2/24** | our stratified subsample |
+| 840 | 13/24 | half of 1680 |
+| 1260 | 6/24 | three quarters of 1680 |
+| **1680** | **24/24** | the full `Text_only` set — the paper's own figure |
+| 3360, 4960, 5040 | 24/24 | multiples of 1680; fit trivially because 1680 does |
 
-The surrogate column is the right place to spend it: Qwen2-VL is where our MM number disagrees
-with the paper most (37.31 vs 57.26, −20 points), and the 1680 reference cells for the released
-image and No Attack on that model are **already done and valid**.
+**Exhaustive sweep result: the only denominators consistent with all 24 values are 1680 and its
+multiples.** 1680 is the smallest, and it is the number the paper states. Our 520 subsample fits
+**2 of 24** — it is arithmetically impossible that the authors used it.
 
-This requires amending **E3** to: *full 1680 on the white-box surrogate; fixed stratified 520
-subsample on the five transfer models, with the measured +1.4…+2.8 point offset reported.* That is
-a deviation, and it gets stated as one.
+### 5.4 Consequence: the 520 subsample cannot be called paper-faithful
 
----
+This overturns the recommendation an earlier draft of this file made. The subsample is a sound
+*internal* instrument — it is the same fixed 520 rows for every patch, so CF-vs-PF and seed-vs-seed
+comparisons over it are exact, and the measured offset against the full set is a steady +1.4 to
++2.8 points. But it is **not** what the paper measured, so no number computed on it may sit in a
+column headed "paper-faithful".
+
+**E3 therefore stands as written: MM-SafetyBench means all 1680 rows.** The honest cost:
+
+| | GPU-h |
+|---|---|
+| 6 branch patches × 6 models × 1680 | 199.8 |
+| reference rows at 1680: `authors` + `noattack` on the 4 remaining models | 57.2 |
+| reference rows at 1680: `vajm` + `umk` on all 6, after the P2 rebuild | 66.4 |
+| **Table 1c total** | **323.4** |
+
+That is ~14 windows for one sub-table, against 77 GPU-h for Tables 1a and 1b together.
+
+### 5.5 Two gaps that remain genuinely unspecified
+
+Neither is resolvable from the paper, and both belong in the write-up as declared choices:
+
+1. **Which image variant.** MM-SafetyBench ships each question as a Stable-Diffusion image, a
+   typographic image, SD+TYPO, and `Text_only`. The paper never says. The string
+   "Stable-Diffusion" does not appear in it. We use `Text_only`, and the choice is forced: the
+   image-bearing splits ask *image-dependent* questions ("the bottom of the image shows a
+   phrase…"), so replacing their image with a universal adversarial patch leaves the question
+   referring to something no longer present. `Text_only`'s questions are self-contained.
+   (Note that 5040 = 3 × 1680 also fits the arithmetic, which is consistent with the three
+   image variants of the same 1680 targets — but the paper says 1680 targets, so 1680 it is.)
+2. **Whether the adversarial image replaces the benchmark's own image.** The paper does not state
+   it; its threat model — "works when paired with any harmful text query" — implies it.
 
 ## 6. The plan, in stages
 
-Each stage is one job, self-chaining across the 24 h wall, per-cell markers, contract gate at
+Each stage is one job: self-chaining across the 24 h wall, per-cell markers, contract gate at
 stage 0, GLM last within each model loop. A stage is submitted only when the previous one has
 passed its gate.
 
-| # | stage | contents | GPU-h | windows |
-|---|---|---|---|---|
-| **0** | **fix P1, P2, P3** | E4b + sha pinning in the gate; delete the 2 bad configs, 4 bad cells, 4 markers; rebuild vajm/umk 1680 in their own prompt form; S1c refinement | **0** | — |
-| **A** | **Table 1a + 1b** | 6 patches × 6 models × {SafeBench 315, AdvBench 520} = 72 cells | **77.3** | ~4 |
-| **B** | **Table 1c** | MM-520 × 6 patches × 6 models (66.0) + MM-1680 surrogate × 6 patches (15.0) + 2 rebuilt reference cells (5.0) | **86.0** | ~4 |
-| **C** | **Table 3 PF arm** | 3 ablation variants × 3 seeds, projection ON: 9 trainings (43.2) + 5 models × sb+ab (96.7) | **139.9** | ~6 |
-| **D** | **Table 6 PF arm** | TV ∈ {0.2, 1.0} × 3 seeds: 6 trainings (28.8) + 2 victims × sb315 (14.9) | **43.7** | ~2 |
-| | **total** | | **347** | **~16** |
+| # | stage | contents | GPU-h | windows | state |
+|---|---|---|---|---|---|
+| **0** | **fix P1, P2, P3** | E4b + sha pins; rebuild the 2 MM configs; clause S1e | **0** | — | ✅ **done 2026-10-24** |
+| **A** | **Table 1a + 1b** | 6 patches × 6 models × {SafeBench 315, AdvBench 520} = 72 cells | **77.3** | ~4 | **prepared, not submitted** |
+| **B** | **Table 1c** | all 1680 (§5): 6 patches × 6 models (199.8) + 20 reference cells (123.6) | **323.4** | ~14 | awaiting a scope decision |
+| **C** | Table 3 PF arm | 3 variants × 3 seeds, projection ON: 9 trainings (43.2) + 45 cells (96.7) | **139.9** | ~6 | deferred |
+| **D** | Table 6 PF arm | TV ∈ {0.2, 1.0} × 3 seeds: 6 trainings (28.8) + 6 cells (14.9) | **43.7** | ~2 | deferred |
 
-**Stages A and B complete Table 1 — the paper's headline — for 163 GPU-h, about 7 windows.**
-That is the part I would commit to first; C and D are a second phase and can be decided later.
+**Only stage A is to be queued.** It is the one stage with no open decision: the row counts,
+prompt forms and models are all fixed by the contract, and §5 did not change any of them.
+
+Stage B's cost is now known to be unavoidable if the number is to be called paper-faithful — §5.3
+rules out the subsample arithmetically — so it is a scope decision about whether Table 1c is worth
+14 windows, not a fidelity decision.
 
 ### Ordering inside stage A, and why
 
-Model-major with GLM last, benchmark-minor, so a model loads once and serves 12 cells. Cheap
-models first means an interrupted window still lands whole cells. GLM is ~35% of stage A's cost on
-its own, so it goes where a handoff hurts least.
+Model-major with GLM last, benchmark-minor, so a model loads once and serves 12 cells (6 patches ×
+2 benchmarks). Cheap models first means an interrupted window still lands whole cells. GLM is ~35%
+of stage A's cost on its own, so it goes where a handoff hurts least.
+
+Per-cell cost in stage A, from the measured table in §4 — the largest single cell is GLM/AdvBench
+at 2.5 h, comfortably inside a window, so **no sharding is needed for stage A**. (Sharding is only
+required for stage B, where a GLM MM-1680 cell is 14 h.)
 
 ### Fail-proofing, carried over from the retrain job that worked
 
 - per-cell marker — a lost window costs one cell, never the job
-- **per-cell** wall check using the measured rate above, not a flat reserve; the cell starts only
-  if the whole cell fits, because `attack.py` writes nothing until a config completes
-- the GLM MM-1680 cell (14 h) is **sharded** into 4 × 420 rows, so it cannot eat a window and
-  write nothing — this is the one cell the current `cell_fits` logic would mishandle
+- **per-cell** wall check using the measured rate, not a flat reserve; a cell starts only if the
+  whole cell fits, because `attack.py` writes nothing until a config completes
 - one pending resume via the `RESUB` latch; `resub end` refuses when no progress was made
+- every config gated by `check_branch.py eval --arm <cf|pf> --seed <n>` **before** it is used, so
+  E4b/E4c bind each config to its own patch by sha256 (the P1 fix)
 - GLM generation through `repro_glm/bin/python` at 4096 tokens (E6); everything else through
   `repro`. **Neither venv's package versions are touched** — they produced every existing number.
 - both judges per cell: v3 from the working tree, v1 staged from `c4c276d` (E5)
-
----
 
 ## 7. Out of scope, and why
 
 | item | reason |
 |---|---|
-| Table 1c full 1680 on the five transfer models | 228 GPU-h for a ~+2 point correction we can quantify and state instead |
+| ~~Table 1c at the 520 subsample~~ | **withdrawn** — §5.3 shows 520 fits 2/24 of the paper's values, so it cannot be paper-faithful |
 | CF arm of Tables 3 and 6 | **impossible by definition** — see §3 |
 | 3 seeds on VAJM / UMK | baselines, not the claim under test — P3 |
 | Table 2 StrongREJECT | blocked: native 0–1 scorer unavailable |

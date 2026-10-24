@@ -9,18 +9,40 @@ relevant check passes. Every clause prints PASS/FAIL with its contract id.
     python reproducibility/check_branch.py pf --exp repro_paper_faithful_1300
 
     # evaluation side (either branch)
-    python reproducibility/check_branch.py eval --config cfs_sb315   --kind safebench
+    python reproducibility/check_branch.py eval --config t1_cf_s0_sb315 --kind safebench --arm cf --seed 0
     python reproducibility/check_branch.py eval --config cfs_abnorm  --kind advbench
     python reproducibility/check_branch.py eval --config mm1680_pf   --kind mmsafety
 
 Exit status 0 = contract satisfied. Non-zero = do not submit.
 """
-import argparse, difflib, inspect, json, subprocess, sys
+import argparse, difflib, hashlib, inspect, json, subprocess, sys
 from pathlib import Path
 
 AUTH = "c4c276d"
 REPO = Path(__file__).resolve().parent.parent
 FAILED = []
+
+# E4b — a branch evaluation config may point at NOTHING but the contract patch for
+# its own branch and seed. Without this the eval gate passes a config built on a
+# superseded artifact (demonstrated with cmp_pf_sb315 on 2026-10-24), which is the
+# one way a whole table can come out wrong while every check says PASS. The real
+# sha256 values live in patch_pins.json, written by --write-pins after training.
+PIN_FILE = REPO / "reproducibility/patch_pins.json"
+
+
+def sha(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def load_pins():
+    """Recorded sha256 of each contract patch. Written once, by --write-pins."""
+    if PIN_FILE.exists():
+        return json.loads(PIN_FILE.read_text())
+    return {}
+
+
+def patch_for(branch, seed):
+    return f"outputs/{branch}_strict_test50_1300_s{seed}/1300.png"
 
 
 def check(cid, ok, detail=""):
@@ -137,8 +159,9 @@ def check_pf(exp):
 
 
 # ---------------------------------------------------------------- eval
-def check_eval(cfg, kind):
-    print(f"EVAL — paper protocol  (config: {cfg}, kind: {kind})")
+def check_eval(cfg, kind, branch=None, seed=None, models=None):
+    print(f"EVAL — paper protocol  (config: {cfg}, kind: {kind}"
+          + (f", branch: {branch.upper()} seed {seed}" if branch else "") + ")")
     import pandas as pd
     p = REPO / "attack_configs" / f"{cfg}.csv"
     if not p.exists():
@@ -156,6 +179,45 @@ def check_eval(cfg, kind):
     check("E7", not leak,
           "no released image in this branch config"
           + (f"  <-- {leak} is the AUTHORS' RELEASED IMAGE; a branch must be a retrain" if leak else ""))
+
+    # ---- E4b: the patch must BE the contract patch for this branch and seed ----
+    if branch is None:
+        print("  [INFO] E4b: skipped — pass --branch and --seed to bind this config "
+              "to a contract patch (a branch eval job MUST do this)")
+    else:
+        exp = patch_for(branch, seed)
+        got = imgs[0] if len(imgs) == 1 else None
+        ok = got == exp
+        check("E4b", ok, f"patch is {branch.upper()} seed {seed}"
+              + ("" if ok else f"  <-- config uses {got}, contract requires {exp}. "
+                               "A superseded artifact here passes every OTHER check."))
+        # sha pin: a retrain into the same directory must not silently redefine a table
+        pins = load_pins()
+        if ok:
+            f = REPO / exp
+            if not f.exists():
+                check("E4c", False, f"{exp} does not exist on disk")
+            elif exp in pins:
+                cur = sha(f)
+                check("E4c", cur == pins[exp],
+                      f"sha256 matches the pin ({cur[:12]})"
+                      + ("" if cur == pins[exp] else
+                         f"  <-- pin is {pins[exp][:12]}; this patch has been RETRAINED since "
+                         "the pin was written, so existing numbers refer to a different image"))
+            else:
+                check("E4c", False, f"no sha pin recorded for {exp} — run --write-pins first")
+
+    # ---- E5: both judges, as a post-condition where results already exist ----
+    if models:
+        missing = []
+        for m in models:
+            rd = REPO / "results" / cfg / m
+            for suffix, label in (("_harmbench.csv", "v1"), ("_harmbench_v3.csv", "v3")):
+                if not (rd.parent / f"{rd.name}{suffix}").exists():
+                    missing.append(f"{m}:{label}")
+        check("E5", not missing,
+              f"both judges present for {len(models)} model(s)"
+              + (f" — missing {len(missing)}: {missing[:4]}" if missing else ""))
 
 
 def check_seeds(require_trained=False):
@@ -214,9 +276,30 @@ def main():
     ap.add_argument("--seed", type=int, choices=[0, 1, 2])
     ap.add_argument("--require-trained", action="store_true",
                     help="seeds: also require all 6 patches to exist (post-run check)")
+    ap.add_argument("--arm", choices=["cf", "pf"],
+                    help="eval: which branch this config belongs to (enables E4b). "
+                         "NOT named --branch: that would collide with the positional.")
+    ap.add_argument("--models", help="eval: comma-separated model ids, to also check E5")
+    ap.add_argument("--write-pins", action="store_true",
+                    help="record the sha256 of all six contract patches (do this ONCE, "
+                         "after training, before any evaluation)")
     s = ap.parse_args()
 
     print(f"Branch contract: reproducibility/BRANCH_CONTRACT.md (authors' commit {AUTH})\n")
+
+    if s.write_pins:
+        pins = {}
+        for b in ("cf", "pf"):
+            for sd in (0, 1, 2):
+                f = REPO / patch_for(b, sd)
+                if not f.exists():
+                    print(f"  [FAIL] cannot pin: {patch_for(b, sd)} is missing")
+                    return 1
+                pins[patch_for(b, sd)] = sha(f)
+                print(f"  pinned {patch_for(b, sd)}  {pins[patch_for(b, sd)][:12]}")
+        PIN_FILE.write_text(json.dumps(pins, indent=1) + "\n")
+        print(f"\nwrote {PIN_FILE.relative_to(REPO)} — E4c will now reject a retrained patch")
+        return 0
     if s.branch == "cf":
         default = ("reproducibility/authors_code/optimisation/"
                    f"optimise_cf_strict_s{s.seed if s.seed is not None else 0}.py")
@@ -230,7 +313,13 @@ def main():
     else:
         if not (s.config and s.kind):
             ap.error("eval needs --config and --kind")
-        check_eval(s.config, s.kind)
+        if s.arm and s.seed is None:
+            ap.error("--arm also needs --seed")
+        if not s.arm:
+            print("  [WARN] no --arm/--seed given: E4b cannot bind this config to a "
+                  "contract patch. A branch eval job MUST pass them.\n")
+        models = s.models.split(",") if s.models else None
+        check_eval(s.config, s.kind, s.arm, s.seed, models)
 
     print()
     if FAILED:

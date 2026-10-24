@@ -114,7 +114,8 @@ nothing (D7). There are no authors' seeds to adopt.
 |---|---|
 | S1a | Both branches train on **seeds {0, 1, 2}** — the *identical* set, so a CF-vs-PF difference can never be a difference of seeds |
 | S1b | Six trainings in all: `cf_strict_test50_1300_s{0,1,2}` and `pf_strict_test50_1300_s{0,1,2}` |
-| S1c | **Every table reports all three seeds individually** — one column or row per seed, s0 / s1 / s2 — with mean ± spread as an *additional* summary, never as a replacement. A single-seed number never appears on its own anywhere in the report |
+| S1c | **Every table reports all three seeds individually** — one column or row per seed, s0 / s1 / s2 — with mean ± spread as an *additional* summary, never as a replacement. See S1e for which rows this binds |
+| S1e | **Scope of S1c** (set by the project owner 2026-10-24). S1c binds every row produced by an optimisation **we run in order to reproduce UltraBreak itself**: the CF and PF branch rows, and the PF ablation and TV variants. Rows that are not that are reported at n=1 and **explicitly labelled as such** — never silently |
 | S1d | Three sources of randomness must be covered: patch initialisation (`torch.rand`), per-step transform parameters (`random.uniform`, `utils.py:37-39`), and target-embedding noise (`torch.randn_like`, `utils.py:185`) |
 
 **The honest limit, to be stated wherever the spread is reported.** Seeding pins the *sampling*, not
@@ -122,6 +123,22 @@ the arithmetic. `grid_sample`'s backward pass has no deterministic CUDA kernel a
 step passes through it, so two runs at the same seed still drift. **Three seeds give a variance
 estimate; they do not make training bitwise reproducible.** The spread is therefore a lower bound on
 the true run-to-run variance, not an exact one.
+
+**Which rows S1c binds (S1e).** A spread can only be reported where there is something random to
+vary. Three classes, and all three get a visible label:
+
+| row class | seeds | label in the table |
+|---|---|---|
+| CF / PF branch rows; PF ablation + TV variants | **3, mandatory** | `s0 / s1 / s2` + mean ± spread |
+| VAJM, UMK — our trainings, but baselines | 1 | `n=1, not seed-averaged` |
+| released `ultrabreak.png`, No Attack, FigStep | 1 — **nothing to seed** | `single artifact / no training` |
+
+The principle: S1c exists so that a *claim about UltraBreak's reproducibility* carries an interval.
+VAJM and UMK are context for that claim, not the claim, so three seeds each — six more trainings
+plus evaluation — buys nothing the report needs. The released image is one file the authors
+published; No Attack and FigStep involve no optimisation at all. **Saying "this row is one draw" is
+more honest than manufacturing a spread for it**, and it keeps the three-seed guarantee meaning
+exactly what it claims to mean.
 
 **Reporting rule (S1c), set by the project owner 2026-10-22.** Tables show the *per-seed* numbers,
 not a collapsed mean. A reader must be able to see s0, s1 and s2 and judge the spread for
