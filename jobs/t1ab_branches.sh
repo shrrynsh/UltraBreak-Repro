@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #SBATCH --job-name=ub_t1ab
-#SBATCH --partition=ub
 #SBATCH --gres=gpu:1
+#SBATCH --cpus-per-task=10
+#SBATCH --mem=64G
 #SBATCH --time=24:00:00
 #SBATCH --signal=B:USR1@1200
 #SBATCH --output=logs/job_%j.out
