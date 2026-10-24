@@ -256,16 +256,24 @@ passed its gate.
 |---|---|---|---|---|---|
 | **0** | **fix P1, P2, P3** | E4b + sha pins; rebuild the 2 MM configs; clause S1e | **0** | — | ✅ **done 2026-10-24** |
 | **A** | **Table 1a + 1b** | 6 patches × 6 models × {SafeBench 315, AdvBench 520} = 72 cells | **77.3** | ~4 | **prepared, not submitted** |
-| **B** | **Table 1c** | all 1680 (§5): 6 patches × 6 models (199.8) + 20 reference cells (123.6) | **323.4** | ~14 | awaiting a scope decision |
+| **B** | **Table 1c** | **all 1680, no subsample — decided by the owner 2026-10-24.** 6 patches × 6 models (199.8) + 20 reference cells (123.6) | **323.4** | ~14 | prepared next |
 | **C** | Table 3 PF arm | 3 variants × 3 seeds, projection ON: 9 trainings (43.2) + 45 cells (96.7) | **139.9** | ~6 | deferred |
 | **D** | Table 6 PF arm | TV ∈ {0.2, 1.0} × 3 seeds: 6 trainings (28.8) + 6 cells (14.9) | **43.7** | ~2 | deferred |
 
-**Only stage A is to be queued.** It is the one stage with no open decision: the row counts,
-prompt forms and models are all fixed by the contract, and §5 did not change any of them.
+**Table 1 = stages A + B = 400.7 GPU-h, ~18 windows.** Both stages are now decided: the owner
+fixed MM-SafetyBench at the full 1680 on 2026-10-24, so there is no open question left in Table 1.
+Stages C and D remain deferred.
 
-Stage B's cost is now known to be unavoidable if the number is to be called paper-faithful — §5.3
-rules out the subsample arithmetically — so it is a scope decision about whether Table 1c is worth
-14 windows, not a fidelity decision.
+### Stage B needs sharding; stage A does not
+
+A GLM MM-1680 cell is **14.0 h** of a 24 h window, and `attack.py` writes its CSV only after a
+whole config completes — so a GLM cell that starts with less than 14 h left loses everything it
+did and repeats identically on the next resume. It would never finish. Stage B therefore splits
+each **GLM** MM-1680 config into **4 shards of 420 rows** (~3.5 h each), concatenated before
+judging, so the largest unit of lost work is 3.5 h instead of 14. The other five models are
+2.1–5.3 h per cell and need no sharding.
+
+Stage A's largest cell is GLM/AdvBench at 2.5 h, so it runs unsharded.
 
 ### Ordering inside stage A, and why
 
